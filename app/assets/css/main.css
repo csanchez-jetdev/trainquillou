@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-rail: #0a2540;
+  --color-rail-soft: #1b3a5b;
+  --color-accent: #00b8a9;
+  --color-accent-strong: #009688;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html, body, #__nuxt { height: 100%; }
+body { margin: 0; background: #f6f8fb; color: var(--color-rail); }
