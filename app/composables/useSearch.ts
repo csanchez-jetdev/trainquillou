@@ -8,11 +8,16 @@ export function useSearch() {
   const date = computed(() => (route.query.date as string) || '')
   const hasQuery = computed(() => Boolean(origin.value && date.value))
 
-  const { data, pending, error, refresh } = useFetch<SearchResult>('/api/search', {
-    query: { origin, date },
-    immediate: hasQuery.value,
-    watch: [origin, date],
-  })
+  const { data, pending, error, refresh } = useAsyncData<SearchResult | null>(
+    'search',
+    () => {
+      if (!origin.value || !date.value) return Promise.resolve(null)
+      return $fetch<SearchResult>('/api/search', {
+        query: { origin: origin.value, date: date.value },
+      })
+    },
+    { watch: [origin, date] },
+  )
 
   function search(params: { origin: string; date: string }) {
     router.push({ query: { origin: params.origin, date: params.date } })

@@ -19,8 +19,8 @@ async function onShowReturns(destLabel: string) {
 
 <template>
   <main class="relative h-screen w-screen overflow-hidden bg-slate-100">
-    <!-- Map placeholder (filled in Task 15) -->
-    <div class="absolute inset-0 grid place-items-center text-slate-300 text-lg">carte</div>
+    <!-- Map background (.client.vue = client-only, no ClientOnly wrapper needed) -->
+    <MapView class="absolute inset-0" :result="result" :hovered="hovered" />
 
     <!-- Floating left panel -->
     <div class="absolute inset-x-2 bottom-2 z-10 flex max-h-[70vh] flex-col gap-3 sm:inset-x-auto sm:left-4 sm:top-4 sm:bottom-4 sm:max-h-none sm:w-[22rem]">
