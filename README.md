@@ -1,75 +1,29 @@
-# Nuxt Minimal Starter
+# Trainquillou
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Trouvez les destinations **TGVmax** réservables depuis votre gare, sur une carte interactive.
+**100% gratuit, sans paywall, sans compte.**
 
-## Setup
+## Stack
 
-Make sure to install dependencies:
+Nuxt 4 · TypeScript · Tailwind v4 · MapLibre GL · open data SNCF.
+
+## Développement
 
 ```bash
-# npm
-npm install
-
-# pnpm
 pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+pnpm dev      # http://localhost:3000
+pnpm test     # tests unitaires + composants
+pnpm build    # build production
 ```
 
-## Development Server
+## Données & attributions
 
-Start the development server on `http://localhost:3000`:
+- Disponibilités TGVmax : [open data SNCF — dataset `tgvmax`](https://data.sncf.com/explore/dataset/tgvmax/).
+- Coordonnées des gares : référentiel SNCF « liste-des-gares ».
+- Fonds de carte : OpenStreetMap, rendu MapLibre GL.
 
-```bash
-# npm
-npm run dev
+Données sous licence ouverte / ODbL. Voir attributions dans l'application.
 
-# pnpm
-pnpm dev
+## Licence
 
-# yarn
-yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+[AGPL-3.0](./LICENSE). Toute version hébergée modifiée doit republier son code source.
