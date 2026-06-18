@@ -115,10 +115,7 @@ function submit() {
 </script>
 
 <template>
-    <form
-        class="w-full rounded-2xl bg-white/95 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur"
-        @submit.prevent="submit"
-    >
+    <form class="w-full" @submit.prevent="submit">
         <!-- Sélecteur de mode -->
         <div
             class="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 sm:grid-cols-4"
