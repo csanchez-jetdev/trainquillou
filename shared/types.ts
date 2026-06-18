@@ -9,6 +9,7 @@ export interface Destination {
   coords: [number, number] | null // [lat, lon]
   trains: Train[]
   availableDates?: string[] // mode=range : jours où la destination est joignable
+  popularity?: number // notoriété touristique : nb d'éditions Wikipédia de la ville (proxy)
 }
 
 /**

@@ -9,6 +9,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'show-returns': [string]; hover: [string | null] }>()
 
+const pop = computed(() => popularityTier(props.destination.popularity))
+
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-')
   return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('fr-FR', {
@@ -24,7 +26,14 @@ function formatDate(iso: string): string {
     @mouseleave="emit('hover', null)"
   >
     <div class="flex items-center justify-between gap-2">
-      <span class="font-semibold text-rail">{{ destination.label }}</span>
+      <span class="flex min-w-0 items-center gap-1.5">
+        <span class="truncate font-semibold text-rail">{{ destination.label }}</span>
+        <span
+          v-if="pop.tier > 0"
+          :title="`${pop.label} (notoriété)`"
+          class="shrink-0 text-xs text-amber-500"
+        >{{ pop.stars }}</span>
+      </span>
       <!-- Retours pertinents uniquement en recherche aller classique -->
       <button
         v-if="mode === 'from'"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SearchResult, ReturnDatesResult } from '~~/shared/types'
 
-defineProps<{
+const props = defineProps<{
   result: SearchResult | null | undefined
   pending: boolean
   error: unknown
@@ -13,6 +13,14 @@ const emit = defineEmits<{
   hover: [string | null]
   retry: []
 }>()
+
+const sortBy = ref<'default' | 'popularity'>('default')
+
+const sortedDestinations = computed(() => {
+  const list = props.result?.destinations ?? []
+  if (sortBy.value !== 'popularity') return list
+  return [...list].sort((a, b) => (b.popularity ?? -1) - (a.popularity ?? -1) || a.label.localeCompare(b.label))
+})
 </script>
 
 <template>
@@ -41,9 +49,28 @@ const emit = defineEmits<{
           {{ result.destinations.length }} destination(s)
         </template>
       </p>
+      <div v-if="result.destinations.length" class="flex items-center justify-end gap-1 px-1 text-xs text-rail-soft">
+        <span>Trier :</span>
+        <button
+          type="button"
+          :class="sortBy === 'default' ? 'font-semibold text-accent-strong' : 'hover:text-rail'"
+          @click="sortBy = 'default'"
+        >
+          {{ result.mode === 'range' ? 'jours' : 'A→Z' }}
+        </button>
+        <span class="text-slate-300">·</span>
+        <button
+          type="button"
+          data-test="sort-popularity"
+          :class="sortBy === 'popularity' ? 'font-semibold text-accent-strong' : 'hover:text-rail'"
+          @click="sortBy = 'popularity'"
+        >
+          notoriété ★
+        </button>
+      </div>
       <ul v-if="result.destinations.length" class="flex flex-col gap-2 overflow-auto pr-1">
         <DestinationCard
-          v-for="d in result.destinations"
+          v-for="d in sortedDestinations"
           :key="d.label"
           :destination="d"
           :mode="result.mode"

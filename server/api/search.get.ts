@@ -8,6 +8,7 @@ import {
 } from '../utils/sncf'
 import { lookupCoords } from '../utils/stations'
 import { getCoordsIndex } from '../utils/coords'
+import { lookupPopularity } from '../utils/popularity'
 import type { SearchResult, SearchMode } from '~~/shared/types'
 
 export default defineCachedEventHandler(
@@ -34,12 +35,20 @@ export default defineCachedEventHandler(
       destinations = groupReservableTrains(await fetchOutbound(origin, date))
     }
 
+    const enriched = await Promise.all(
+      destinations.map(async (d) => ({
+        ...d,
+        coords: lookupCoords(index, d.label),
+        popularity: await lookupPopularity(d.label),
+      })),
+    )
+
     return {
       origin: { label: origin, coords: lookupCoords(index, origin) },
       date,
       ...(mode === 'range' ? { dateTo: q.dateTo } : {}),
       mode,
-      destinations: destinations.map((d) => ({ ...d, coords: lookupCoords(index, d.label) })),
+      destinations: enriched,
     }
   },
   {
