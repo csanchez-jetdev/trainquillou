@@ -9,7 +9,7 @@ export function useItinerary() {
   const from = computed(() => (route.query.origin as string) || '')
   const to = computed(() => (route.query.destination as string) || '')
   const date = computed(() => (route.query.date as string) || '')
-  const stops = computed(() => (route.query.stops as string) || '1')
+  const stops = computed(() => (route.query.stops as string) || '2')
   const active = computed(() => route.query.mode === 'route')
 
   const { data, pending, error, refresh } = useAsyncData<RouteData | null>(
@@ -20,7 +20,10 @@ export function useItinerary() {
         query: { from: from.value, to: to.value, date: date.value, stops: stops.value },
       })
     },
-    { watch: [from, to, date, stops, active] },
+    // Client-only + non bloquant : la recherche d'itinéraire peut être longue
+    // (exploration du graphe). On affiche la page immédiatement avec le skeleton
+    // plutôt que de bloquer le SSR.
+    { watch: [from, to, date, stops, active], server: false, lazy: true },
   )
 
   return { from, to, date, stops, active, route: data, pending, error, refresh }

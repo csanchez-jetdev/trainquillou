@@ -1,4 +1,4 @@
-import { findItineraries } from '../utils/routing'
+import { findItineraries, feasibleNextDays } from '../utils/routing'
 import { lookupCoords } from '../utils/stations'
 import { getCoordsIndex } from '../utils/coords'
 import type { RouteResult } from '~~/shared/types'
@@ -10,10 +10,13 @@ export default defineCachedEventHandler(
     if (!from || !to || !date) {
       throw createError({ statusCode: 400, statusMessage: 'from, to and date are required' })
     }
-    const maxStops = Math.max(0, Math.min(2, Number(q.stops ?? 1) || 0))
+    const maxStops = Math.max(0, Math.min(3, Number(q.stops ?? 2) || 0))
 
     const index = await getCoordsIndex()
-    const { itineraries, truncated } = await findItineraries(from, to, date, maxStops)
+    const [{ itineraries, truncated }, alsoAvailable] = await Promise.all([
+      findItineraries(from, to, date, maxStops),
+      feasibleNextDays(from, to, date, 3),
+    ])
 
     // Enrichissement des coordonnées de chaque leg
     const enriched = itineraries.map((it) => ({
@@ -31,6 +34,7 @@ export default defineCachedEventHandler(
       date,
       maxStops,
       itineraries: enriched,
+      alsoAvailable,
       truncated,
     }
   },

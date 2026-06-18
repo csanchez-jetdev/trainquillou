@@ -60,4 +60,5 @@ export interface RouteResult {
   date: string // YYYY-MM-DD
   maxStops: number
   itineraries: Itinerary[] // triées par durée croissante
+  alsoAvailable: string[] // jours suivants (YYYY-MM-DD) où un trajet ≤1 corresp. existe
 }

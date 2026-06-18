@@ -10,6 +10,7 @@ const props = defineProps<{
     initialDateTo?: string;
     initialStops?: string;
     initialMode?: BarMode;
+    loading?: boolean;
 }>();
 const emit = defineEmits<{
     search: [
@@ -31,7 +32,7 @@ const origin = ref(props.initialOrigin ?? "");
 const destination = ref(props.initialDestination ?? "");
 const date = ref(props.initialDate ?? "");
 const dateTo = ref(props.initialDateTo ?? "");
-const stops = ref(props.initialStops ?? "1");
+const stops = ref(props.initialStops ?? "2");
 const error = ref("");
 
 const showOriginSug = ref(false);
@@ -247,7 +248,8 @@ function submit() {
                 >
                     <option value="0">Direct</option>
                     <option value="1">≤ 1</option>
-                    <option value="2">≤ 2 (plus lent)</option>
+                    <option value="2">≤ 2</option>
+                    <option value="3">≤ 3 (plus lent)</option>
                 </select>
             </div>
         </div>
@@ -256,9 +258,11 @@ function submit() {
 
         <button
             type="submit"
-            class="mt-4 w-full rounded-lg bg-accent px-4 py-2.5 font-semibold text-white transition hover:bg-accent-strong"
+            :disabled="loading"
+            class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
         >
-            {{ submitLabel }}
+            <Spinner v-if="loading" :size="16" />
+            <span>{{ loading ? "Recherche…" : submitLabel }}</span>
         </button>
     </form>
 </template>

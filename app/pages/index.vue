@@ -9,6 +9,12 @@ const selectedRoute = ref(0)
 
 const isRoute = computed(() => mode.value === 'route')
 
+// L'état de chargement de l'itinéraire est client-only (fetch côté client). On ne
+// l'expose qu'après le montage pour éviter un mismatch d'hydratation sur le bouton.
+const isMounted = ref(false)
+onMounted(() => (isMounted.value = true))
+const searchLoading = computed(() => isMounted.value && (isRoute.value ? itinerary.pending.value : pending.value))
+
 // Réinitialise la sélection quand un nouvel itinéraire arrive.
 watch(() => itinerary.route.value, () => { selectedRoute.value = 0 })
 
@@ -21,6 +27,17 @@ const returnsByDest = computed(() => {
 async function onShowReturns(destLabel: string) {
   if (!result.value) return
   await loadReturns(destLabel, result.value.origin.label, result.value.date)
+}
+
+// Relance la recherche d'itinéraire sur une date suggérée.
+function onPickRouteDate(d: string) {
+  search({
+    mode: 'route',
+    origin: itinerary.from.value,
+    destination: itinerary.to.value,
+    date: d,
+    stops: itinerary.stops.value,
+  })
 }
 </script>
 
@@ -44,18 +61,24 @@ async function onShowReturns(destLabel: string) {
         :initial-date-to="dateTo"
         :initial-stops="itinerary.stops.value"
         :initial-mode="mode"
+        :loading="searchLoading"
         @search="search"
       />
       <div class="min-h-0 flex-1 overflow-hidden rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-black/5 backdrop-blur">
-        <RoutePanel
-          v-if="isRoute"
-          :route="itinerary.route.value"
-          :pending="itinerary.pending.value"
-          :error="itinerary.error.value"
-          :selected="selectedRoute"
-          @select="selectedRoute = $event"
-          @retry="itinerary.refresh()"
-        />
+        <ClientOnly v-if="isRoute">
+          <RoutePanel
+            :route="itinerary.route.value"
+            :pending="itinerary.pending.value"
+            :error="itinerary.error.value"
+            :selected="selectedRoute"
+            @select="selectedRoute = $event"
+            @retry="itinerary.refresh()"
+            @pick-date="onPickRouteDate"
+          />
+          <template #fallback>
+            <LoadingCards label="Recherche d'itinéraires…" :count="3" />
+          </template>
+        </ClientOnly>
         <ResultsRail
           v-else
           :result="result"

@@ -7,18 +7,25 @@ const props = defineProps<{
   error: unknown
   selected: number
 }>()
-const emit = defineEmits<{ select: [number]; retry: [] }>()
+const emit = defineEmits<{ select: [number]; retry: []; 'pick-date': [string] }>()
 
 function fmtDuration(min: number): string {
   const h = Math.floor(min / 60)
   const m = min % 60
   return h ? `${h} h ${String(m).padStart(2, '0')}` : `${m} min`
 }
+
+function fmtDay(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('fr-FR', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  })
+}
 </script>
 
 <template>
   <div class="flex h-full flex-col gap-2">
-    <div v-if="pending" class="p-4 text-rail-soft">Recherche d'itinéraires…</div>
+    <LoadingCards v-if="pending" label="Recherche d'itinéraires…" :count="3" />
 
     <div v-else-if="error" class="p-4">
       <p class="text-red-600">Impossible de calculer l'itinéraire.</p>
@@ -70,9 +77,26 @@ function fmtDuration(min: number): string {
           </ol>
         </li>
       </ul>
-      <p v-else class="p-4 text-rail-soft">
+      <p v-else class="px-1 py-3 text-rail-soft">
         Aucun itinéraire TGVmax trouvé ce jour-là. Essayez d'augmenter le nombre de correspondances ou de changer de date.
       </p>
+
+      <!-- Jours suivants où un trajet ≤ 1 correspondance existe -->
+      <div v-if="route.alsoAvailable?.length" class="mt-1 border-t border-slate-100 pt-2">
+        <p class="px-1 text-xs text-rail-soft">Aussi possible les jours suivants :</p>
+        <div class="mt-1 flex flex-wrap gap-1.5 px-1">
+          <button
+            v-for="d in route.alsoAvailable"
+            :key="d"
+            type="button"
+            data-test="also-day"
+            class="rounded-full bg-accent/10 px-2.5 py-1 text-sm font-medium text-accent-strong transition hover:bg-accent/20"
+            @click="emit('pick-date', d)"
+          >
+            {{ fmtDay(d) }}
+          </button>
+        </div>
+      </div>
     </template>
 
     <div v-else class="p-4 text-rail-soft">

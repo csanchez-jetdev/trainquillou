@@ -25,7 +25,7 @@ const sortedDestinations = computed(() => {
 
 <template>
   <div class="flex h-full flex-col gap-2">
-    <div v-if="pending" class="p-4 text-rail-soft">Recherche des destinations…</div>
+    <LoadingCards v-if="pending" label="Recherche des destinations…" />
 
     <div v-else-if="error" class="p-4">
       <p class="text-red-600">Impossible de récupérer les données SNCF.</p>
