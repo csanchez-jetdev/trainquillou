@@ -37,21 +37,55 @@ async function fetchRecords(params: Record<string, string | string[]>): Promise<
   return all
 }
 
-export function groupReservableTrains(records: RawRecord[]): Destination[] {
-  const byDest = new Map<string, Train[]>()
+/** Groupe les trains réservables par la gare opposée (`destination` ou `origine`). */
+function groupBy(records: RawRecord[], key: 'destination' | 'origine'): Destination[] {
+  const byLabel = new Map<string, Train[]>()
   for (const r of records) {
     if (r.od_happy_card !== 'OUI') continue
-    const list = byDest.get(r.destination) || []
+    const list = byLabel.get(r[key]) || []
     list.push({ departure: r.heure_depart, arrival: r.heure_arrivee, trainNumber: r.train_no || null })
-    byDest.set(r.destination, list)
+    byLabel.set(r[key], list)
   }
-  return [...byDest.entries()]
+  return [...byLabel.entries()]
     .map(([label, trains]) => ({
       label,
       coords: null as Destination['coords'],
       trains: trains.sort((a, b) => a.departure.localeCompare(b.departure)),
     }))
     .sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** Destinations réservables depuis une origine (groupées par gare d'arrivée). */
+export function groupReservableTrains(records: RawRecord[]): Destination[] {
+  return groupBy(records, 'destination')
+}
+
+/** Origines possibles vers une gare d'arrivée (recherche inverse, groupées par gare de départ). */
+export function groupReservableByOrigin(records: RawRecord[]): Destination[] {
+  return groupBy(records, 'origine')
+}
+
+/**
+ * Destinations réservables depuis une origine sur une plage de dates.
+ * Chaque destination porte la liste des jours où elle est joignable.
+ */
+export function groupReservableByDate(records: RawRecord[]): Destination[] {
+  const datesByDest = new Map<string, Set<string>>()
+  for (const r of records) {
+    if (r.od_happy_card !== 'OUI') continue
+    const set = datesByDest.get(r.destination) || new Set<string>()
+    set.add(r.date)
+    datesByDest.set(r.destination, set)
+  }
+  return [...datesByDest.entries()]
+    .map(([label, dates]) => ({
+      label,
+      coords: null as Destination['coords'],
+      trains: [] as Train[],
+      availableDates: [...dates].sort(),
+    }))
+    // Les plus « robustes » (joignables le plus de jours) d'abord.
+    .sort((a, b) => b.availableDates.length - a.availableDates.length || a.label.localeCompare(b.label))
 }
 
 export async function fetchStationLabels(): Promise<string[]> {
@@ -71,6 +105,22 @@ export async function fetchOutbound(origin: string, date: string): Promise<RawRe
   return fetchRecords({
     refine: [`date:${date}`, 'od_happy_card:OUI'],
     where: `origine like "${origin.replace(/"/g, '')}"`,
+  })
+}
+
+/** Trains réservables ARRIVANT dans une gare un jour donné (recherche inverse). */
+export async function fetchInbound(destination: string, date: string): Promise<RawRecord[]> {
+  return fetchRecords({
+    refine: [`date:${date}`, 'od_happy_card:OUI'],
+    where: `destination like "${destination.replace(/"/g, '')}"`,
+  })
+}
+
+/** Trains réservables depuis une origine sur une plage de dates [from, to] incluse. */
+export async function fetchOutboundRange(origin: string, from: string, to: string): Promise<RawRecord[]> {
+  return fetchRecords({
+    refine: ['od_happy_card:OUI'],
+    where: `origine like "${origin.replace(/"/g, '')}" and date >= date'${from}' and date <= date'${to}'`,
   })
 }
 

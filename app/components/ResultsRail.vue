@@ -28,21 +28,36 @@ const emit = defineEmits<{
 
     <template v-else-if="result">
       <p class="px-1 text-sm text-rail-soft">
-        <strong class="text-rail">{{ result.origin.label }}</strong> ·
-        {{ result.destinations.length }} destination(s)
+        <template v-if="result.mode === 'to'">
+          Vers <strong class="text-rail">{{ result.origin.label }}</strong> ·
+          {{ result.destinations.length }} origine(s) possible(s)
+        </template>
+        <template v-else-if="result.mode === 'range'">
+          Depuis <strong class="text-rail">{{ result.origin.label }}</strong> ·
+          {{ result.destinations.length }} destination(s) sur la plage
+        </template>
+        <template v-else>
+          <strong class="text-rail">{{ result.origin.label }}</strong> ·
+          {{ result.destinations.length }} destination(s)
+        </template>
       </p>
       <ul v-if="result.destinations.length" class="flex flex-col gap-2 overflow-auto pr-1">
         <DestinationCard
           v-for="d in result.destinations"
           :key="d.label"
           :destination="d"
+          :mode="result.mode"
           :returns="returns[d.label] ?? null"
           :returns-loading="returnsLoading === d.label"
           @show-returns="emit('show-returns', $event)"
           @hover="emit('hover', $event)"
         />
       </ul>
-      <p v-else class="p-4 text-rail-soft">Aucune destination TGVmax réservable ce jour-là.</p>
+      <p v-else class="p-4 text-rail-soft">
+        {{ result.mode === 'to'
+          ? 'Aucune origine TGVmax vers cette gare ce jour-là.'
+          : 'Aucune destination TGVmax réservable sur cette période.' }}
+      </p>
     </template>
 
     <div v-else class="p-4 text-rail-soft">

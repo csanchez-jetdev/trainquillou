@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { Destination, ReturnDatesResult } from '~~/shared/types'
+import type { Destination, ReturnDatesResult, SearchMode } from '~~/shared/types'
 
 const props = defineProps<{
   destination: Destination
+  mode: SearchMode
   returns?: ReturnDatesResult | null
   returnsLoading?: boolean
 }>()
@@ -24,7 +25,9 @@ function formatDate(iso: string): string {
   >
     <div class="flex items-center justify-between gap-2">
       <span class="font-semibold text-rail">{{ destination.label }}</span>
+      <!-- Retours pertinents uniquement en recherche aller classique -->
       <button
+        v-if="mode === 'from'"
         data-test="returns-btn"
         type="button"
         class="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-accent-strong hover:bg-accent/10"
@@ -32,18 +35,38 @@ function formatDate(iso: string): string {
       >
         Retours →
       </button>
+      <span
+        v-else-if="mode === 'range' && destination.availableDates"
+        class="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-strong"
+      >
+        {{ destination.availableDates.length }} jour(s)
+      </span>
     </div>
-    <div class="mt-2 flex flex-wrap gap-1.5">
+
+    <!-- Mode range : jours de disponibilité -->
+    <div v-if="mode === 'range' && destination.availableDates" class="mt-2 flex flex-wrap gap-1.5">
+      <span
+        v-for="d in destination.availableDates"
+        :key="d"
+        class="rounded-md bg-slate-100 px-2 py-0.5 text-sm text-rail-soft"
+      >
+        {{ formatDate(d) }}
+      </span>
+    </div>
+
+    <!-- Modes from / to : créneaux de train -->
+    <div v-else class="mt-2 flex flex-wrap gap-1.5">
       <span
         v-for="t in destination.trains"
         :key="t.departure + t.trainNumber"
         data-test="dep-chip"
-        :title="`Arrivée ${t.arrival}${t.trainNumber ? ` · Train ${t.trainNumber}` : ''}`"
+        :title="`${mode === 'to' ? 'Départ' : 'Arrivée'} ${t.arrival}${t.trainNumber ? ` · Train ${t.trainNumber}` : ''}`"
         class="rounded-md bg-slate-100 px-2 py-0.5 text-sm tabular-nums text-rail-soft"
       >
         {{ t.departure }}
       </span>
     </div>
+
     <p v-if="returnsLoading" class="mt-2 text-sm text-rail-soft">Chargement des retours…</p>
     <div v-else-if="returns" class="mt-2 border-t border-slate-100 pt-2">
       <p v-if="!returns.dates.length" class="text-sm text-rail-soft">Aucun retour TGVmax disponible.</p>

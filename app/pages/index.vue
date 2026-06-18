@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ReturnDatesResult } from '~~/shared/types'
 
-const { origin, date, result, pending, error, search, refresh } = useSearch()
+const { origin, date, dateTo, mode, result, pending, error, search, refresh } = useSearch()
 const { cache: returnsCache, loading: returnsLoading, load: loadReturns } = useReturns()
 const hovered = ref<string | null>(null)
 
@@ -24,7 +24,13 @@ async function onShowReturns(destLabel: string) {
 
     <!-- Floating left panel -->
     <div class="absolute inset-x-2 bottom-2 z-10 flex max-h-[70vh] flex-col gap-3 sm:inset-x-auto sm:left-4 sm:top-4 sm:bottom-4 sm:max-h-none sm:w-[22rem]">
-      <SearchBar :initial-origin="origin" :initial-date="date" @search="search" />
+      <SearchBar
+        :initial-origin="origin"
+        :initial-date="date"
+        :initial-date-to="dateTo"
+        :initial-mode="mode"
+        @search="search"
+      />
       <div class="min-h-0 flex-1 overflow-hidden rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-black/5 backdrop-blur">
         <ResultsRail
           :result="result"
