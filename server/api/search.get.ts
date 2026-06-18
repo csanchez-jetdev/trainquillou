@@ -6,22 +6,9 @@ import {
   groupReservableByOrigin,
   groupReservableByDate,
 } from '../utils/sncf'
-import { buildCoordsIndex, lookupCoords, type CoordsIndex } from '../utils/stations'
+import { lookupCoords } from '../utils/stations'
+import { getCoordsIndex } from '../utils/coords'
 import type { SearchResult, SearchMode } from '~~/shared/types'
-
-let coordsIndex: CoordsIndex | null = null
-
-async function getCoordsIndex(): Promise<CoordsIndex> {
-  if (!coordsIndex) {
-    try {
-      const records = await useStorage('assets:server').getItem<any[]>('gares.json')
-      coordsIndex = buildCoordsIndex(records || [])
-    } catch {
-      coordsIndex = new Map()
-    }
-  }
-  return coordsIndex
-}
 
 export default defineCachedEventHandler(
   async (event): Promise<SearchResult> => {

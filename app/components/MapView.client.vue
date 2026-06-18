@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import type { SearchResult } from '~~/shared/types'
+import type { SearchResult, RouteResult } from '~~/shared/types'
 
-const props = defineProps<{ result: SearchResult | null | undefined; hovered: string | null }>()
+const props = defineProps<{
+  result: SearchResult | null | undefined
+  route?: (RouteResult & { truncated?: boolean }) | null
+  selectedRoute?: number
+  hovered: string | null
+}>()
 
 const instance = getCurrentInstance()
 let map: maplibregl.Map | null = null
@@ -22,8 +27,8 @@ onMounted(async () => {
       zoom: 5,
       attributionControl: { compact: true },
     })
-    // Render initial result once map tiles are ready
-    map.once('load', () => { if (props.result) render(props.result) })
+    // Render initial state once map tiles are ready
+    map.once('load', () => draw())
   } catch (e) {
     console.error('[MapView] maplibre init failed:', e)
   }
@@ -39,13 +44,79 @@ function clearMarkers() {
   markers.clear()
 }
 
+function removeLayerSource(id: string) {
+  if (!map) return
+  if (map.getLayer(id)) map.removeLayer(id)
+  if (map.getSource(id)) map.removeSource(id)
+}
+
+/** Crée un élément DOM de marqueur (pastille colorée). */
+function dot(color: string, size: number): HTMLDivElement {
+  const el = document.createElement('div')
+  el.style.cssText = `width:${size}px;height:${size}px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)`
+  return el
+}
+
+/** Aiguille le rendu selon la source active : itinéraire prioritaire, sinon recherche. */
+function draw() {
+  if (!map) return
+  if (props.route) renderRoute(props.route, props.selectedRoute ?? 0)
+  else render(props.result)
+}
+
+function renderRoute(route: RouteResult, selected: number) {
+  if (!map) return
+  clearMarkers()
+  removeLayerSource('lines')
+  removeLayerSource('route-line')
+
+  const a = route.from.coords
+  const b = route.to.coords
+  if (a) markers.set('__a__', new maplibregl.Marker({ element: dot('#0a2540', 14) }).setLngLat([a[1], a[0]]).addTo(map))
+  if (b) markers.set('__b__', new maplibregl.Marker({ element: dot('#e0245e', 14) }).setLngLat([b[1], b[0]]).addTo(map))
+
+  const it = route.itineraries[selected]
+  const pts: [number, number][] = []
+  if (it) {
+    // Suite ordonnée des nœuds : départ du 1er leg, puis arrivée de chaque leg
+    const nodes = [it.legs[0]?.fromCoords, ...it.legs.map((l) => l.toCoords)].filter(Boolean) as [number, number][]
+    nodes.forEach((c, i) => {
+      pts.push(c)
+      // Marqueur intermédiaire (ni A ni B)
+      if (i > 0 && i < nodes.length - 1) {
+        const el = dot('#00b8a9', 11)
+        markers.set(`__via_${i}__`, new maplibregl.Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
+      }
+    })
+    if (nodes.length > 1) {
+      map.addSource('route-line', {
+        type: 'geojson',
+        data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: nodes.map((c) => [c[1], c[0]]) } },
+      })
+      map.addLayer({ id: 'route-line', type: 'line', source: 'route-line', paint: { 'line-color': '#00b8a9', 'line-width': 3, 'line-opacity': 0.7 } })
+    }
+  } else {
+    if (a) pts.push(a)
+    if (b) pts.push(b)
+  }
+
+  if (pts.length > 1) {
+    const bounds = new maplibregl.LngLatBounds()
+    pts.forEach((p) => bounds.extend([p[1], p[0]]))
+    map.fitBounds(bounds, { padding: { top: 60, bottom: 60, left: 400, right: 60 }, maxZoom: 8, duration: 800 })
+  }
+}
+
 function render(result: SearchResult | null | undefined) {
   if (!map || !result) {
     clearMarkers()
+    removeLayerSource('lines')
+    removeLayerSource('route-line')
     return
   }
 
   clearMarkers()
+  removeLayerSource('route-line')
 
   // Remove existing lines layer/source
   if (map.getLayer('lines')) map.removeLayer('lines')
@@ -94,11 +165,12 @@ function render(result: SearchResult | null | undefined) {
   }
 }
 
-// Handles result changes after map is created (initial render is in onMounted)
-watch(() => props.result, (r) => {
+// Redessine quand la source change (résultat de recherche, itinéraire, ou itinéraire sélectionné).
+// Le rendu initial est déclaré dans onMounted.
+watch([() => props.result, () => props.route, () => props.selectedRoute], () => {
   if (!map) return
-  if (map.loaded()) render(r)
-  else map.once('load', () => render(r))
+  if (map.loaded()) draw()
+  else map.once('load', () => draw())
 })
 
 watch(() => props.hovered, (label) => {
