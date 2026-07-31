@@ -88,15 +88,34 @@ export function groupReservableByDate(records: RawRecord[]): Destination[] {
     .sort((a, b) => b.availableDates.length - a.availableDates.length || a.label.localeCompare(b.label))
 }
 
+/** Libellés aux caractères de contrôle C1 : le dataset en contient un, à l'encodage abîmé. */
+function isMangled(label: string): boolean {
+  for (let i = 0; i < label.length; i++) {
+    const code = label.charCodeAt(i)
+    if (code >= 0x80 && code <= 0x9f) return true
+  }
+  return false
+}
+
+/**
+ * Libellés de gares distincts, pour l'autocomplétion.
+ *
+ * Via `group_by` et non l'endpoint `facets` : celui-ci plafonne silencieusement à
+ * 100 valeurs et masquait 238 des 341 gares du dataset — Amiens, Annecy, Arcachon
+ * ou Angoulême étaient introuvables dans la recherche.
+ */
 export async function fetchStationLabels(): Promise<string[]> {
   const labels = new Set<string>()
-  for (const facet of ['origine', 'destination']) {
-    const res = await $fetch<{ facets: Array<{ name: string; facets: Array<{ name: string }> }> }>(
-      `${BASE}/facets`,
-      { query: { facet } },
+  for (const field of ['origine', 'destination']) {
+    const res = await $fetch<{ results: Array<Record<string, string | null>> }>(
+      `${BASE}/records`,
+      { query: { select: field, group_by: field, limit: -1 } },
     )
-    const group = res.facets?.find((f) => f.name === facet)
-    group?.facets?.forEach((x) => labels.add(x.name))
+    for (const row of res.results || []) {
+      const value = row[field]
+      // Le libellé abîmé est un doublon d'une gare déjà listée : on l'écarte de la saisie.
+      if (value && !isMangled(value)) labels.add(value)
+    }
   }
   return [...labels].sort((a, b) => a.localeCompare(b))
 }

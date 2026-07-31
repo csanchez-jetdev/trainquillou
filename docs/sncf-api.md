@@ -76,15 +76,32 @@ de 50), mais une requête sur une plage de dates les dépasse largement.
 Un train partant à `23:40` et arrivant à `01:15` donne `heure_arrivee < heure_depart`. Tout calcul
 de durée doit ajouter 1440 minutes dans ce cas, sinon la durée devient négative.
 
-### La liste des gares passe par les facettes, et elle est plafonnée aussi
+### N'utilisez pas `facets` pour lister les gares : il en cache les deux tiers
+
+C'est le piège le plus coûteux du dataset, parce qu'il ne produit aucune erreur.
 
 ```
-GET .../tgvmax/facets?facet=origine
-→ facets[0].facets[] = [{ name: "PARIS (intramuros)", count: 51 }, …]
+GET .../tgvmax/facets?facet=origine     → 103 gares   ❌ plafonné en silence
+GET .../tgvmax/records?select=origine&group_by=origine&limit=-1
+                                        → 341 gares   ✅
 ```
 
-Environ 100 valeurs, plafonnées à 100. Il faut faire l'**union** de `facet=origine` et
-`facet=destination` : certaines gares ne sont jamais origine et manqueraient sinon.
+L'endpoint `facets` plafonne à 100 valeurs **sans le signaler** : ni erreur, ni champ de
+pagination, ni indication que la liste est tronquée. Le dataset compte en réalité 341 gares.
+Les 238 manquantes ne sont pas des arrêts obscurs : Amiens, Annecy, Arcachon, Angoulême,
+Albertville et Aix-les-Bains en font partie.
+
+Dans les deux cas, faites l'**union** de `origine` et `destination` : certaines gares ne sont
+jamais origine et manqueraient sinon.
+
+### Un libellé du dataset est mal encodé
+
+Le dataset contient `ANGOULAME` — un « Ê » abîmé, avec un caractère de contrôle C1 —
+**en doublon** de l'`ANGOULEME` correct. Deux entrées pour la même gare, dont une qui ne
+correspondra à aucun référentiel et polluera une autocomplétion.
+
+Filtrez les libellés contenant un caractère dans la plage `U+0080`–`U+009F`, ou aiguillez-les
+explicitement.
 
 ### Les libellés ne correspondent à aucun autre référentiel
 

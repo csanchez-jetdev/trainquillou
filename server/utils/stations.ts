@@ -37,8 +37,26 @@ export function stationKey(label: string): string {
  * connaît que le Chessy du Rhône, à 358 km, ce qui plaçait Disneyland près de Lyon.
  */
 export const EXTRA_STATIONS: Record<string, Coords> = {
-  // France
+  // France — arrêts que le référentiel ferroviaire ne contient pas : gares desservies
+  // par autocar, arrêts des îles de Ré et d'Oléron, haltes de la Meuse.
   'marne la vallee chessy': [48.8699134, 2.7821727],
+  'arcachon': [44.6589798, -1.1653219],
+  'la teste': [44.6368737, -1.1431389],
+  'lacanau ocean': [45.0014797, -1.1962844],
+  'bourcefranc le chapus': [45.8469846, -1.1466191],
+  'dolus d oleron': [45.9112189, -1.2619116],
+  'marennes': [45.8224965, -1.112795],
+  'st martin de re': [46.2016893, -1.3681861],
+  'ste marie de re': [46.1491638, -1.3115373],
+  'loix': [46.2240177, -1.4364756],
+  'rivedoux plage': [46.1568361, -1.2748439],
+  'les portes en re': [46.250833, -1.497222],
+  'st pierre d oleron': [45.9437695, -1.3061227],
+  'la noue': [48.742849, 3.6108789],
+  'fresnes au mont': [48.89702, 5.44048],
+  'pierrefitte sur aire': [48.9003286, 5.3299107],
+  'souilly': [49.027658, 5.285761],
+  'l hospitalet pres l and': [42.587865, 1.7980639],
   // Allemagne
   'frankfurt hbf': [50.107145, 8.663789],
   'frankfurt main hbf': [50.107145, 8.663789],
@@ -53,9 +71,25 @@ export const EXTRA_STATIONS: Record<string, Coords> = {
   'freiburg hbf': [47.9977919, 7.8426094],
   'offenburg': [48.47302, 7.9455],
   'stuttgart hbf': [48.783615, 9.182902],
+  'augsburg hbf': [48.3656702, 10.8862827],
+  'baden baden': [48.7895302, 8.1909158],
+  'berlin hbf': [52.5250175, 13.369448],
+  'berlin sudkreuz': [52.4759806, 13.3650726],
+  'berlin gesundbrunnen': [52.5486453, 13.3902169],
+  'erfurt hbf': [50.9727731, 11.0378865],
+  'esslingen neckar': [48.7397667, 9.3002039],
+  'halle saale hbf': [51.4774872, 11.9872964],
+  'kaiserslautern hbf': [49.4359636, 7.7680865],
+  'lahr schwarzw': [48.3418287, 7.8360637],
+  'munchen hbf': [48.1407253, 11.5569426],
+  'ringsheim europa park': [48.2483367, 7.7732483],
+  'saarbruecken sarrebruck': [49.2411972, 6.990794],
+  'ulm hbf': [48.3994159, 9.9826024],
+  'vaihingen enz': [48.9461895, 8.9586162],
   // Suisse
   'geneve': [46.210017, 6.142738],
   'geneva': [46.210017, 6.142738],
+  'geneve cornavin': [46.2081688, 6.1424953],
   'zurich': [47.378177, 8.540192],
   'zurich hb': [47.378177, 8.540192],
   'zurich hbf': [47.378177, 8.540192],
@@ -73,8 +107,12 @@ export const EXTRA_STATIONS: Record<string, Coords> = {
   // Italie, Espagne, Autriche
   'milano centrale': [45.485051, 9.204158],
   'milan centrale': [45.485051, 9.204158],
+  'milano porta garibaldi': [45.4849, 9.1878],
   'torino porta susa': [45.07343, 7.659258],
+  'oux cesana clav sestriere': [45.038731, 6.831411],
   'barcelona sants': [41.379128, 2.140478],
+  'girona': [41.9791657, 2.8162865],
+  'figueres vilafant': [42.2646953, 2.9426836],
   'vienna hbf': [48.18575, 16.376973],
 }
 
@@ -89,6 +127,16 @@ const LABEL_ALIASES: Record<string, string> = {
   'valence tgv auvergne rhone alpes': 'valence tgv',
   'nimes centre': 'nimes',
   'caussade tarn et garonne': 'caussade',
+  // « st » ne fait que deux lettres : sans aiguillage, seul « die » servait d'accroche
+  // et Saint-Dié-des-Vosges atterrissait à Die, dans la Drôme.
+  'st die': 'st die des vosges',
+  // Le qualificatif de département devient un mot comparable : « sevres » rattachait
+  // Saint-Maixent à la commune de Sèvres, en région parisienne.
+  'st maixent deux sevres': 'st maixent l ecole',
+  // Le dataset contient un libellé mal encodé, « ANGOULA<U+008A>ME », en doublon
+  // d'« ANGOULEME » : le caractère de contrôle tombe à la normalisation et laisse
+  // « angoula me ». On le renvoie sur la bonne gare.
+  'angoula me': 'angouleme',
 }
 
 export function buildCoordsIndex(records: Array<{ libelle?: string; commune?: string; x_wgs84?: number; y_wgs84?: number }>): CoordsIndex {

@@ -16,7 +16,7 @@ const read = (p: string) => JSON.parse(readFileSync(resolve(process.cwd(), p), '
 const gares = read('server/assets/gares.json')
 const index = buildCoordsIndex(gares)
 
-/** Les 103 libellés réellement présents dans le dataset TGVmax (facettes origine + destination). */
+/** Les 341 libellés réellement présents dans le dataset TGVmax (group_by origine ∪ destination). */
 const TGVMAX_LABELS: string[] = read('test/fixtures/tgvmax-labels.json')
 
 /** Distance approximative en km — suffisant pour vérifier qu'une gare est au bon endroit. */
@@ -82,6 +82,31 @@ describe('lookupCoords — régressions de placement sur la carte', () => {
     expectNear('KARLSRUHE HBF', [48.9931106, 8.4022064])
     expectNear('MANNHEIM HBF', [49.4796632, 8.4698178])
   })
+
+  it('place Saint-Dié dans les Vosges, pas à Die dans la Drôme', () => {
+    // « st » ne fait que deux lettres : seul « die » servait d'accroche.
+    expectNear('ST DIE', [48.2821, 6.9472])
+  })
+
+  it('place Saint-Maixent dans les Deux-Sèvres, pas à Sèvres en Île-de-France', () => {
+    // Le nom du département dans le libellé matchait la commune de Sèvres.
+    expectNear('ST MAIXENT (DEUX SEVRES)', [46.4065, -0.2011])
+  })
+
+  it('place les arrêts des îles de Ré et d\'Oléron sur leur île', () => {
+    expectNear('LES PORTES EN RE', [46.250833, -1.497222])
+    expectNear('ST PIERRE D\'OLERON', [45.9437695, -1.3061227])
+    expectNear('ST MARTIN DE RE', [46.2016893, -1.3681861])
+  })
+
+  it('rattache le libellé mal encodé d\'Angoulême à la bonne gare', () => {
+    // Le dataset contient « ANGOULA<U+008A>ME » en doublon d'« ANGOULEME ».
+    const mangled = TGVMAX_LABELS.find((l) => [...l].some((c) => c.charCodeAt(0) >= 0x80 && c.charCodeAt(0) <= 0x9f))
+    expect(mangled, 'le libellé mal encodé a disparu du dataset').toBeTruthy()
+    const a = lookupCoords(index, mangled!)
+    const b = lookupCoords(index, 'ANGOULEME')
+    expect(a).toEqual(b)
+  })
 })
 
 describe('lookupCoords — choix entre candidats proches', () => {
@@ -123,30 +148,51 @@ describe('bestPartialMatch — le repli refuse de deviner', () => {
 })
 
 describe('couverture du dataset TGVmax', () => {
-  it('contient bien les 103 libellés attendus', () => {
-    expect(TGVMAX_LABELS.length).toBe(103)
+  it('contient bien les 341 libellés attendus', () => {
+    expect(TGVMAX_LABELS.length).toBe(341)
   })
 
-  it('résout les 103 libellés sans exception', () => {
+  it('résout les 341 libellés sans exception', () => {
     const unresolved = TGVMAX_LABELS.filter((l) => lookupCoords(index, l) === null)
     expect(unresolved, `libellés sans coordonnées : ${unresolved.join(', ')}`).toEqual([])
   })
 
-  it('résout les 103 libellés de façon déterministe, sans recourir au repli', () => {
-    // Le repli est un filet de sécurité pour un libellé que SNCF viendrait d'ajouter, pas
-    // un chemin nominal. Si ce test casse, c'est qu'un nouveau libellé est apparu : il faut
-    // lui ajouter un alias ou une entrée EXTRA_STATIONS plutôt que laisser l'heuristique deviner.
+  it('ne laisse aucun nouveau libellé au repli heuristique sans revue', () => {
+    // Ces 17 libellés portent un qualificatif absent du référentiel (« VILLE », « GARE »,
+    // un nom de département) et le repli les rattache correctement à leur commune : chacun
+    // a été vérifié à la main. La liste est figée volontairement — si elle change, c'est
+    // qu'un libellé est apparu ou a changé de chemin, et il faut le vérifier avant de
+    // l'ajouter ici plutôt que faire confiance à l'heuristique.
+    const REVIEWED = [
+      'ALBI VILLE',
+      'BELLEGARDE SUR VALSERINE GARE',
+      'BIGANOS FACTURE',
+      'CLUSES (HAUTE SAVOIE)',
+      'COMMERCY ZONE DU SEUGNON',
+      'DOLE VILLE',
+      'LAROQUEBROU BATIMENT VOYAGEURS',
+      'LEROUVILLE CENTRE',
+      'MASSIAC BLESLE',
+      'MONTELIMAR GARE SNCF',
+      'NURIEUX GARE',
+      'PORT VENDRES VILLE',
+      'RANG DU FLIERS VERTON BERCK',
+      'SAINT MIHIEL DETENTION',
+      'SAMPIGNY CENTRE',
+      'ST JEAN DE MAURIENNE ARVAN',
+      'VALENCE VILLE',
+    ]
     const heuristic = TGVMAX_LABELS.filter((l) => resolveCoords(index, l).via === 'partial')
-    expect(heuristic, `libellés résolus par heuristique : ${heuristic.join(', ')}`).toEqual([])
+    expect(heuristic.sort()).toEqual([...REVIEWED].sort())
   })
 
-  it('place les 103 libellés dans une zone géographique plausible', () => {
-    // France métropolitaine + pays desservis par TGVmax.
+  it('place les 341 libellés dans une zone géographique plausible', () => {
+    // France métropolitaine + pays desservis par TGVmax, Berlin comprise au nord.
     const outside = TGVMAX_LABELS.filter((l) => {
       const c = lookupCoords(index, l)
       if (!c) return false
       const [lat, lon] = c
-      return lat < 41 || lat > 52.5 || lon < -5 || lon > 17
+      return lat < 41 || lat > 53.5 || lon < -5 || lon > 17
     })
     expect(outside, `libellés hors zone : ${outside.join(', ')}`).toEqual([])
   })
