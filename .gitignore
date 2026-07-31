@@ -20,6 +20,10 @@ logs
 
 # Réglages locaux d'outils d'assistance (jamais partagés)
 .claude/settings.local.json
+.playwright-mcp
+
+# Cache local des scripts de build (régénérable)
+scripts/.booking-cache.json
 
 # Local env files
 .env

@@ -6,6 +6,7 @@
 Construit server/assets/popularity.json : pour chaque gare TGVmax, un score de
 notoriété touristique = nombre d'éditions linguistiques de Wikipédia de la ville
 (proxy gratuit, sans clé ; les lieux très touristiques ont beaucoup de versions).
+Construit server/assets/popularity.json.
 
 Pipeline (toutes sources publiques, sans clé) :
   1. labels TGVmax  (facettes origine ∪ destination de l'open data SNCF)
