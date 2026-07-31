@@ -61,7 +61,7 @@ export default defineCachedEventHandler(
         ...d,
         coords: lookupCoords(index, d.label),
         popularity: await lookupPopularity(d.label),
-        slug: await lookupBookingSlug(d.label),
+        slug: lookupBookingSlug(d.label),
       })),
     )
 
@@ -69,7 +69,7 @@ export default defineCachedEventHandler(
       origin: {
         label: origin,
         coords: lookupCoords(index, origin),
-        slug: await lookupBookingSlug(origin),
+        slug: lookupBookingSlug(origin),
       },
       date,
       ...(NEEDS_SECOND_DATE.includes(mode) ? { dateTo: q.dateTo } : {}),

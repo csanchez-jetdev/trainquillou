@@ -3,7 +3,7 @@
 # dependencies = ["requests"]
 # ///
 """
-Construit server/assets/booking.json : pour chaque gare TGVmax, le slug de ville
+Construit shared/booking.json : pour chaque gare TGVmax, le slug de ville
 utilisé par les sites de réservation dans leurs URL de pages horaires.
 
 Pourquoi un slug de ville et pas le libellé de la gare : les deux sites construisent
@@ -36,7 +36,7 @@ SNCF = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax"
 TRAINLINE = "https://www.thetrainline.com/fr/horaires-train"
 UA = "trainquillou-build/1.0 (+https://github.com/csanchez-jetdev/trainquillou)"
 
-ASSETS_DIR = Path(__file__).parent.parent / "server" / "assets"
+ASSETS_DIR = Path(__file__).parent.parent / "shared"
 CACHE = Path(__file__).parent / ".booking-cache.json"
 
 # Délai entre requêtes : on interroge un site tiers, on reste discret.
@@ -153,7 +153,7 @@ def main() -> None:
     print(f"{len(labels)} gares TGVmax\n")
 
     cache = load_cache()
-    resolved: dict[str, str] = {}
+    resolved: dict[str, dict[str, str]] = {}
     unresolved: list[str] = []
 
     try:
@@ -164,7 +164,9 @@ def main() -> None:
                     hit = slug
                     break
             if hit:
-                resolved[clean(label)] = hit
+                # Le libellé d'origine est conservé : les pages statiques en ont besoin
+                # tel quel pour passer `origin` à l'application.
+                resolved[clean(label)] = {"label": label, "slug": hit}
                 print(f"  ✓ {label:42} -> {hit}")
             else:
                 unresolved.append(label)
@@ -179,7 +181,7 @@ def main() -> None:
         json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n"
     )
 
-    print(f"\n{len(out)}/{len(labels)} gares résolues -> server/assets/booking.json")
+    print(f"\n{len(out)}/{len(labels)} gares résolues -> shared/booking.json")
     if unresolved:
         print(f"{len(unresolved)} sans slug (pas de lien de réservation pour elles) :")
         for label in unresolved:

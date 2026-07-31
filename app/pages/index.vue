@@ -8,6 +8,7 @@ if (route.query.origin || route.query.mode || route.query.destination) {
 const modes = [
   { key: 'from', title: 'Depuis une gare', desc: 'Toutes les destinations TGVmax réservables depuis votre gare, un jour donné, posées sur la carte.', chip: 'bg-accent/15 text-accent-strong' },
   { key: 'to', title: 'Vers une gare', desc: "Recherche inverse : d'où peut-on rejoindre une ville en TGVmax ce jour-là ?", chip: 'bg-coral/15 text-coral-strong' },
+  { key: 'roundtrip', title: 'Aller-retour', desc: 'Vous partez vendredi, vous rentrez dimanche : seules les destinations dont les deux trajets sont réservables.', chip: 'bg-coral/15 text-coral-strong' },
   { key: 'range', title: 'Sur plusieurs jours', desc: 'Explorez une plage de dates : voyez les destinations joignables et combien de jours elles le sont.', chip: 'bg-rail/10 text-rail' },
   { key: 'route', title: 'Itinéraire A → B', desc: "Composez un trajet avec correspondances quand il n'y a pas de TGVmax direct entre deux villes.", chip: 'bg-sun/20 text-amber-600' },
 ]
@@ -18,8 +19,95 @@ const steps = [
   { n: '3', title: 'Réservez sur SNCF Connect', desc: 'Trainquillou vous montre où aller ; la réservation TGVmax se fait ensuite côté SNCF.' },
 ]
 
+/** Gares les plus recherchées, vers leurs pages d'entrée (maillage interne). */
+const POPULAR = [
+  { slug: 'paris', name: 'Paris' },
+  { slug: 'lyon', name: 'Lyon' },
+  { slug: 'marseille-st-charles', name: 'Marseille' },
+  { slug: 'bordeaux-st-jean', name: 'Bordeaux' },
+  { slug: 'lille', name: 'Lille' },
+  { slug: 'nantes', name: 'Nantes' },
+  { slug: 'strasbourg', name: 'Strasbourg' },
+  { slug: 'toulouse-matabiau', name: 'Toulouse' },
+  { slug: 'montpellier', name: 'Montpellier' },
+  { slug: 'nice-ville', name: 'Nice' },
+  { slug: 'rennes', name: 'Rennes' },
+  { slug: 'dijon-ville', name: 'Dijon' },
+]
+
+/** La FAQ est affichée ET déclarée en JSON-LD : le balisage doit refléter le visible. */
+const FAQ = [
+  {
+    q: 'Qu\'est-ce que TGVmax ?',
+    a: 'Un abonnement SNCF pour les 16-27 ans donnant accès à un nombre illimité de trajets sur '
+      + 'les trains éligibles, dans la limite des places réservées à l\'abonnement. Ces places sont '
+      + 'contingentées : un train peut circuler sans être ouvert à TGVmax. C\'est ce contingent que '
+      + 'Trainquillou rend visible.',
+  },
+  {
+    q: 'Trainquillou est-il gratuit ?',
+    a: 'Oui, entièrement. Pas de compte, pas de paywall, pas de publicité, pas de traceur '
+      + 'analytique. Le code est ouvert sous licence AGPL-3.0.',
+  },
+  {
+    q: 'Trainquillou réserve-t-il mes billets ?',
+    a: 'Non. Il montre où il reste des places TGVmax et renvoie vers SNCF Connect ou Trainline '
+      + 'pour la réservation. Il n\'est pas affilié à la SNCF.',
+  },
+  {
+    q: 'Les disponibilités sont-elles à jour ?',
+    a: 'Elles proviennent du jeu de données open data SNCF « tgvmax » et sont mises en cache dix '
+      + 'minutes par recherche. Une place peut donc partir entre l\'affichage et votre réservation.',
+  },
+  {
+    q: 'Combien de gares sont couvertes ?',
+    a: 'Les 341 gares du jeu de données TGVmax, dont les destinations à l\'étranger : Bruxelles, '
+      + 'Genève, Luxembourg, Barcelone, Milan, Berlin, Munich et Francfort.',
+  },
+  {
+    q: 'Comment trouver un aller-retour pour un week-end ?',
+    a: 'Le mode « Aller-retour » demande une date de départ et une date de retour, puis n\'affiche '
+      + 'que les destinations dont les deux trajets ont des places TGVmax réservables.',
+  },
+]
+
+const { public: { siteUrl } } = useRuntimeConfig()
+const base = siteUrl.replace(/\/$/, '')
+
 useHead({
   title: 'Trainquillou — destinations TGVmax sur une carte, gratuit et sans compte',
+  link: [{ rel: 'canonical', href: base }],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        name: 'Trainquillou',
+        url: base,
+        applicationCategory: 'TravelApplication',
+        operatingSystem: 'Web',
+        inLanguage: 'fr',
+        description: 'Trouvez les destinations TGVmax réservables depuis votre gare, sur une carte '
+          + 'interactive. Gratuit, sans compte, sans publicité.',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+        license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+        isAccessibleForFree: true,
+      }),
+    },
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: FAQ.map((f) => ({
+          '@type': 'Question',
+          name: f.q,
+          acceptedAnswer: { '@type': 'Answer', text: f.a },
+        })),
+      }),
+    },
+  ],
 })
 </script>
 
@@ -29,9 +117,11 @@ useHead({
     <section class="relative h-[88vh] min-h-[34rem] w-full overflow-hidden">
       <!-- Image de fond -->
       <img
-        src="/hero.png"
+        src="/hero.jpg"
         alt=""
         fetchpriority="high"
+        width="1672"
+        height="941"
         class="absolute inset-0 h-full w-full object-cover"
       >
       <!-- Voiles : navy à gauche pour la lisibilité du texte, halo teal/corail pour la couleur de marque -->
@@ -89,11 +179,11 @@ useHead({
 
     <!-- LES 4 MODES -->
     <section class="mx-auto max-w-6xl px-5 py-16 sm:px-8">
-      <h2 class="text-2xl font-bold sm:text-3xl">Quatre façons d'explorer</h2>
+      <h2 class="text-2xl font-bold sm:text-3xl">Cinq façons d'explorer</h2>
       <p class="mt-2 max-w-2xl text-rail-soft">
-        La même carte, quatre angles d'attaque selon votre envie de voyage.
+        La même carte, cinq angles d'attaque selon votre envie de voyage.
       </p>
-      <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <NuxtLink
           v-for="m in modes"
           :key="m.key"
@@ -104,6 +194,7 @@ useHead({
             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <template v-if="m.key === 'from'"><circle cx="12" cy="12" r="9" /><path d="M9 15 15 9M10 9h5v5" /></template>
               <template v-else-if="m.key === 'to'"><circle cx="12" cy="12" r="9" /><path d="M15 9 9 15M9 10v5h5" /></template>
+              <template v-else-if="m.key === 'roundtrip'"><path d="M4 8h13a3 3 0 0 1 0 6H7" /><path d="m7 5 3 3-3 3M17 19l-3-3 3-3" /></template>
               <template v-else-if="m.key === 'range'"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></template>
               <template v-else><circle cx="5" cy="6" r="2" /><circle cx="19" cy="18" r="2" /><path d="M7 6h6a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6" /></template>
             </svg>
@@ -146,6 +237,35 @@ useHead({
           <h3 class="font-semibold text-rail">Open source</h3>
           <p class="mt-1 text-sm text-rail-soft">Code ouvert sous licence AGPL-3.0, sans tracking ni publicité.</p>
         </div>
+      </div>
+
+      <!-- MAILLAGE : une page d'entrée par gare de départ -->
+      <div class="mt-14">
+        <h2 class="text-2xl font-bold sm:text-3xl">Partir de votre gare</h2>
+        <p class="mt-2 text-rail-soft">
+          Les 341 gares du réseau TGVmax sont couvertes. Voici les départs les plus recherchés.
+        </p>
+        <ul class="mt-5 flex flex-wrap gap-2">
+          <li v-for="p in POPULAR" :key="p.slug">
+            <NuxtLink
+              :to="`/depuis/${p.slug}`"
+              class="inline-block rounded-lg bg-white px-3.5 py-2 text-sm font-medium ring-1 ring-slate-200 transition hover:text-accent-strong hover:ring-accent"
+            >
+              Depuis {{ p.name }}
+            </NuxtLink>
+          </li>
+        </ul>
+      </div>
+
+      <!-- FAQ : reprise à l'identique dans le JSON-LD FAQPage -->
+      <div class="mt-14">
+        <h2 class="text-2xl font-bold sm:text-3xl">Questions fréquentes</h2>
+        <dl class="mt-6 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+          <div v-for="f in FAQ" :key="f.q" class="p-5">
+            <dt class="font-semibold text-rail">{{ f.q }}</dt>
+            <dd class="mt-1.5 text-sm leading-relaxed text-rail-soft">{{ f.a }}</dd>
+          </div>
+        </dl>
       </div>
 
       <div class="relative mt-12 overflow-hidden rounded-3xl bg-gradient-to-br from-rail via-rail to-accent-strong px-6 py-14 text-center">

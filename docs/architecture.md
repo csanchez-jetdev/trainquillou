@@ -41,11 +41,41 @@ Serveur Nitro — routes /api/*
 | `GET /api/returns?origin=&dest=&from=` | Dates de retour disponibles pour un trajet | 10 min |
 | `GET /api/route?from=&to=&date=&stops=` | Itinéraires A → B avec correspondances | 10 min |
 
-`/api/search` porte trois modes :
+`/api/search` porte quatre modes :
 
 - `from` (défaut) — où puis-je aller depuis cette gare ce jour-là ?
 - `to` — recherche inverse : d'où peut-on rejoindre cette gare ?
+- `roundtrip` — quelles destinations ont l'aller **et** le retour réservables ?
 - `range` — sur une plage de dates, quelles destinations et combien de jours chacune.
+
+Le mode `roundtrip` mérite un mot, parce qu'il paraît coûteux et ne l'est pas. L'aller donne
+les trains hub → X. Pour le retour, on réutilise `fetchInbound` **sur le hub** : ces
+enregistrements arrivent au hub, donc leur champ `origine` désigne justement la destination
+candidate. Il ne reste qu'à intersecter les deux ensembles. Deux appels amont, comme une
+recherche simple.
+
+## Pages d'entrée par gare
+
+`/depuis/[slug]` est une page statique par gare de départ, pré-rendue au build (304 pages).
+Elles ne contiennent **aucune donnée temps réel** : uniquement du contenu, du maillage interne
+et des liens vers l'application. C'est délibéré — pré-rendre 304 pages qui interrogeraient
+l'open data SNCF reviendrait à marteler leur API à chaque build.
+
+Les slugs viennent de `shared/booking.json`, la même table que les liens de réservation.
+
+## Liens de réservation
+
+Ni SNCF Connect ni Trainline n'exposent de lien profond vers une recherche pré-remplie : leurs
+formulaires sont pilotés en JavaScript sans `action`, et les boutons « Réserver » de leurs pages
+horaires n'ont pas de `href`. Leur seule surface publique adressable est la page horaires d'une
+paire de villes — sans la date.
+
+Ces URL exigent un **nom de ville**, pas un libellé de gare : `marseille-st-charles` renvoie 404,
+`marseille` fonctionne. D'où `scripts/build-booking.py`, qui construit la table libellé → slug en
+vérifiant chaque candidat contre Trainline (dont le `robots.txt` autorise ces pages et qui renvoie
+des statuts fiables). SNCF Connect protège son site par un défi anti-bot et ne peut pas être
+vérifié automatiquement ; on réutilise le slug validé, les deux sites employant les mêmes noms de
+ville. 307 des 341 gares sont couvertes, les autres n'affichent simplement pas de lien.
 
 ## Le filtre métier essentiel
 
