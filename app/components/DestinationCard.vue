@@ -4,12 +4,22 @@ import type { Destination, ReturnDatesResult, SearchMode } from '~~/shared/types
 const props = defineProps<{
   destination: Destination
   mode: SearchMode
+  /** Slug de réservation du hub, pour construire les liens vers les revendeurs. */
+  originSlug?: string
   returns?: ReturnDatesResult | null
   returnsLoading?: boolean
 }>()
 const emit = defineEmits<{ 'show-returns': [string]; hover: [string | null] }>()
 
 const pop = computed(() => popularityTier(props.destination.popularity))
+
+/** En recherche inverse, le voyage part de la gare listée et rejoint le hub. */
+const legSlugs = computed(() => {
+  const hub = props.originSlug
+  const other = props.destination.slug
+  if (!hub || !other) return null
+  return props.mode === 'to' ? { from: other, to: hub } : { from: hub, to: other }
+})
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-')
@@ -50,6 +60,12 @@ function formatDate(iso: string): string {
       >
         {{ destination.availableDates.length }} jour(s)
       </span>
+      <span
+        v-else-if="mode === 'roundtrip'"
+        class="shrink-0 rounded-full bg-coral/15 px-2 py-0.5 text-xs font-medium text-coral-strong"
+      >
+        aller-retour
+      </span>
     </div>
 
     <!-- Mode range : jours de disponibilité -->
@@ -63,6 +79,38 @@ function formatDate(iso: string): string {
       </span>
     </div>
 
+    <!-- Mode aller-retour : les deux sens, séparés -->
+    <div v-else-if="mode === 'roundtrip'" class="mt-2 flex flex-col gap-1.5">
+      <div class="flex items-start gap-2">
+        <span class="mt-0.5 w-12 shrink-0 text-xs font-semibold uppercase text-rail-soft">Aller</span>
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="t in destination.trains"
+            :key="`out-${t.departure}-${t.trainNumber}`"
+            data-test="dep-chip"
+            :title="`Arrivée ${t.arrival}${t.trainNumber ? ` · Train ${t.trainNumber}` : ''}`"
+            class="rounded-md bg-slate-100 px-2 py-0.5 text-sm tabular-nums text-rail-soft"
+          >
+            {{ t.departure }}
+          </span>
+        </div>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="mt-0.5 w-12 shrink-0 text-xs font-semibold uppercase text-coral-strong">Retour</span>
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="t in destination.returnTrains"
+            :key="`back-${t.departure}-${t.trainNumber}`"
+            data-test="return-chip"
+            :title="`Arrivée ${t.arrival}${t.trainNumber ? ` · Train ${t.trainNumber}` : ''}`"
+            class="rounded-md bg-coral/10 px-2 py-0.5 text-sm tabular-nums text-coral-strong"
+          >
+            {{ t.departure }}
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- Modes from / to : créneaux de train -->
     <div v-else class="mt-2 flex flex-wrap gap-1.5">
       <span
@@ -74,6 +122,28 @@ function formatDate(iso: string): string {
       >
         {{ t.departure }}
       </span>
+    </div>
+
+    <!-- Réservation : Trainquillou montre où aller, la réservation se fait chez le revendeur -->
+    <div v-if="legSlugs" class="mt-2 flex items-center gap-3 text-xs">
+      <a
+        :href="sncfConnectUrl(legSlugs.from, legSlugs.to)"
+        target="_blank"
+        rel="noopener"
+        data-test="book-sncf"
+        class="font-semibold text-accent-strong underline decoration-accent/40 hover:decoration-accent"
+      >
+        Réserver sur SNCF Connect
+      </a>
+      <a
+        :href="trainlineUrl(legSlugs.from, legSlugs.to)"
+        target="_blank"
+        rel="noopener"
+        data-test="book-trainline"
+        class="text-rail-soft underline decoration-slate-300 hover:text-rail"
+      >
+        Trainline
+      </a>
     </div>
 
     <p v-if="returnsLoading" class="mt-2 text-sm text-rail-soft">Chargement des retours…</p>

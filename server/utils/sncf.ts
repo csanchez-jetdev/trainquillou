@@ -1,3 +1,4 @@
+import { cleanString } from './normalize'
 import type { Destination, Train } from '~~/shared/types'
 
 const BASE = 'https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax'
@@ -104,6 +105,50 @@ function isMangled(label: string): boolean {
  * 100 valeurs et masquait 238 des 341 gares du dataset — Amiens, Annecy, Arcachon
  * ou Angoulême étaient introuvables dans la recherche.
  */
+/**
+ * Destinations dont l'aller ET le retour sont réservables — le besoin réel d'un abonné
+ * TGVmax qui part en week-end.
+ *
+ * `outbound` = trains hub → X le jour de l'aller. `inbound` = trains Y → hub le jour du
+ * retour ; le champ `origine` de ces enregistrements désigne donc la destination candidate.
+ * On ne garde que les gares présentes des deux côtés. Coût : deux appels amont, comme une
+ * recherche simple.
+ */
+export function groupRoundTrip(outbound: RawRecord[], inbound: RawRecord[]): Destination[] {
+  const outByStation = new Map<string, Train[]>()
+  const labelByKey = new Map<string, string>()
+  for (const r of outbound) {
+    if (r.od_happy_card !== 'OUI') continue
+    const key = cleanString(r.destination)
+    if (!key) continue
+    labelByKey.set(key, r.destination)
+    const list = outByStation.get(key) || []
+    list.push({ departure: r.heure_depart, arrival: r.heure_arrivee, trainNumber: r.train_no || null })
+    outByStation.set(key, list)
+  }
+
+  const backByStation = new Map<string, Train[]>()
+  for (const r of inbound) {
+    if (r.od_happy_card !== 'OUI') continue
+    const key = cleanString(r.origine)
+    if (!key || !outByStation.has(key)) continue
+    const list = backByStation.get(key) || []
+    list.push({ departure: r.heure_depart, arrival: r.heure_arrivee, trainNumber: r.train_no || null })
+    backByStation.set(key, list)
+  }
+
+  const byDeparture = (a: Train, b: Train) => a.departure.localeCompare(b.departure)
+
+  return [...backByStation.entries()]
+    .map(([key, returnTrains]) => ({
+      label: labelByKey.get(key)!,
+      coords: null as Destination['coords'],
+      trains: outByStation.get(key)!.sort(byDeparture),
+      returnTrains: returnTrains.sort(byDeparture),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+}
+
 export async function fetchStationLabels(): Promise<string[]> {
   const labels = new Set<string>()
   for (const field of ['origine', 'destination']) {

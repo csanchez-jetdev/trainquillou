@@ -44,6 +44,10 @@ const sortedDestinations = computed(() => {
           Depuis <strong class="text-rail">{{ result.origin.label }}</strong> ·
           {{ result.destinations.length }} destination(s) sur la plage
         </template>
+        <template v-else-if="result.mode === 'roundtrip'">
+          Depuis <strong class="text-rail">{{ result.origin.label }}</strong> ·
+          {{ result.destinations.length }} escapade(s) avec aller <em>et</em> retour réservables
+        </template>
         <template v-else>
           <strong class="text-rail">{{ result.origin.label }}</strong> ·
           {{ result.destinations.length }} destination(s)
@@ -74,6 +78,7 @@ const sortedDestinations = computed(() => {
           :key="d.label"
           :destination="d"
           :mode="result.mode"
+          :origin-slug="result.origin.slug"
           :returns="returns[d.label] ?? null"
           :returns-loading="returnsLoading === d.label"
           @show-returns="emit('show-returns', $event)"
@@ -81,9 +86,16 @@ const sortedDestinations = computed(() => {
         />
       </ul>
       <p v-else class="p-4 text-rail-soft">
-        {{ result.mode === 'to'
-          ? 'Aucune origine TGVmax vers cette gare ce jour-là.'
-          : 'Aucune destination TGVmax réservable sur cette période.' }}
+        <template v-if="result.mode === 'to'">
+          Aucune origine TGVmax vers cette gare ce jour-là.
+        </template>
+        <template v-else-if="result.mode === 'roundtrip'">
+          Aucune destination n'a l'aller <em>et</em> le retour réservables à ces dates.
+          Essayez de décaler le retour d'un jour.
+        </template>
+        <template v-else>
+          Aucune destination TGVmax réservable sur cette période.
+        </template>
       </p>
     </template>
 

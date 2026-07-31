@@ -11,8 +11,10 @@ export function useSearch() {
   const dateTo = computed(() => (route.query.dateTo as string) || '')
   const mode = computed<Mode>(() => {
     const m = route.query.mode
-    return m === 'to' || m === 'range' || m === 'route' ? m : 'from'
+    return m === 'to' || m === 'range' || m === 'roundtrip' || m === 'route' ? m : 'from'
   })
+  /** Les modes qui exigent une seconde date : plage d'exploration, ou date de retour. */
+  const needsDateTo = computed(() => mode.value === 'range' || mode.value === 'roundtrip')
   const hasQuery = computed(() => Boolean(origin.value && date.value))
 
   const { data, pending, error, refresh } = useAsyncData<SearchResult | null>(
@@ -21,13 +23,13 @@ export function useSearch() {
       // Le mode itinéraire est servi par useItinerary, pas par /api/search.
       if (mode.value === 'route') return Promise.resolve(null)
       if (!origin.value || !date.value) return Promise.resolve(null)
-      if (mode.value === 'range' && !dateTo.value) return Promise.resolve(null)
+      if (needsDateTo.value && !dateTo.value) return Promise.resolve(null)
       return $fetch<SearchResult>('/api/search', {
         query: {
           origin: origin.value,
           date: date.value,
           mode: mode.value,
-          ...(mode.value === 'range' ? { dateTo: dateTo.value } : {}),
+          ...(needsDateTo.value ? { dateTo: dateTo.value } : {}),
         },
       })
     },
@@ -44,7 +46,7 @@ export function useSearch() {
   }) {
     const m = params.mode || 'from'
     const query: Record<string, string> = { origin: params.origin, date: params.date, mode: m }
-    if (m === 'range' && params.dateTo) query.dateTo = params.dateTo
+    if ((m === 'range' || m === 'roundtrip') && params.dateTo) query.dateTo = params.dateTo
     if (m === 'route') {
       if (params.destination) query.destination = params.destination
       query.stops = params.stops || '1'

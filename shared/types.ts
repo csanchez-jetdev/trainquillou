@@ -9,21 +9,28 @@ export interface Destination {
   coords: [number, number] | null // [lat, lon]
   trains: Train[]
   availableDates?: string[] // mode=range : jours où la destination est joignable
+  returnTrains?: Train[] // mode=roundtrip : trains du retour, à la date de retour
   popularity?: number // notoriété touristique : nb d'éditions Wikipédia de la ville (proxy)
+  slug?: string // slug de ville pour les URL de réservation (voir server/utils/booking.ts)
 }
 
 /**
  * Sens de recherche autour d'un « hub » :
- * - `from`  : départs DEPUIS le hub vers des destinations (défaut)
- * - `to`    : arrivées VERS le hub depuis des origines possibles (recherche inverse)
- * - `range` : départs depuis le hub sur une plage de dates (exploration multi-jours)
+ * - `from`      : départs DEPUIS le hub vers des destinations (défaut)
+ * - `to`        : arrivées VERS le hub depuis des origines possibles (recherche inverse)
+ * - `range`     : départs depuis le hub sur une plage de dates (exploration multi-jours)
+ * - `roundtrip` : destinations dont l'aller ET le retour sont réservables (escapade)
  */
-export type SearchMode = 'from' | 'to' | 'range'
+export type SearchMode = 'from' | 'to' | 'range' | 'roundtrip'
 
 export interface SearchResult {
-  origin: { label: string; coords: [number, number] | null } // le hub (départ ou arrivée selon le mode)
-  date: string // YYYY-MM-DD (date de début en mode range)
-  dateTo?: string // YYYY-MM-DD, mode=range uniquement
+  origin: {
+    label: string
+    coords: [number, number] | null
+    slug?: string
+  } // le hub (départ ou arrivée selon le mode)
+  date: string // YYYY-MM-DD (date de début en mode range, date d'aller en mode roundtrip)
+  dateTo?: string // YYYY-MM-DD : fin de plage en mode range, date de retour en mode roundtrip
   mode: SearchMode
   destinations: Destination[] // les gares reliées (destinations, ou origines en mode `to`)
 }

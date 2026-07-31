@@ -44,17 +44,23 @@ const today = new Date().toISOString().slice(0, 10);
 const MODES: Array<{ key: BarMode; label: string }> = [
     { key: "from", label: "Depuis" },
     { key: "to", label: "Vers" },
+    { key: "roundtrip", label: "Aller-retour" },
     { key: "range", label: "Plusieurs jours" },
     { key: "route", label: "Itinéraire" },
 ];
 
+/** Les modes à deux dates : plage d'exploration, ou date de retour. */
+const hasSecondDate = computed(
+    () => mode.value === "range" || mode.value === "roundtrip",
+);
+
 const originLabel = computed(() => {
     if (mode.value === "to") return "Gare d'arrivée";
-    if (mode.value === "route") return "Gare de départ";
     return "Gare de départ";
 });
 const submitLabel = computed(() => {
     if (mode.value === "to") return "D'où peut-on venir ?";
+    if (mode.value === "roundtrip") return "Voir les escapades";
     if (mode.value === "route") return "Chercher l'itinéraire";
     return "Voir les destinations";
 });
@@ -91,13 +97,19 @@ function submit() {
         error.value = "Choisissez une date.";
         return;
     }
-    if (mode.value === "range") {
+    if (hasSecondDate.value) {
         if (!dateTo.value) {
-            error.value = "Choisissez une date de fin.";
+            error.value =
+                mode.value === "roundtrip"
+                    ? "Choisissez une date de retour."
+                    : "Choisissez une date de fin.";
             return;
         }
         if (dateTo.value < date.value) {
-            error.value = "La date de fin doit suivre la date de début.";
+            error.value =
+                mode.value === "roundtrip"
+                    ? "Le retour ne peut pas précéder l'aller."
+                    : "La date de fin doit suivre la date de début.";
             return;
         }
     }
@@ -107,7 +119,7 @@ function submit() {
         destination:
             mode.value === "route" ? destination.value.trim() : undefined,
         date: date.value,
-        dateTo: mode.value === "range" ? dateTo.value : undefined,
+        dateTo: hasSecondDate.value ? dateTo.value : undefined,
         stops: mode.value === "route" ? stops.value : undefined,
         mode: mode.value,
     });
@@ -118,7 +130,7 @@ function submit() {
     <form class="w-full" @submit.prevent="submit">
         <!-- Sélecteur de mode -->
         <div
-            class="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 sm:grid-cols-4"
+            class="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 sm:grid-cols-5"
         >
             <button
                 v-for="m in MODES"
@@ -212,7 +224,13 @@ function submit() {
                 <label
                     class="block text-xs font-semibold uppercase tracking-wide text-rail-soft"
                 >
-                    {{ mode === "range" ? "Du" : "Date" }}
+                    {{
+                        mode === "range"
+                            ? "Du"
+                            : mode === "roundtrip"
+                              ? "Aller"
+                              : "Date"
+                    }}
                 </label>
                 <input
                     v-model="date"
@@ -221,14 +239,15 @@ function submit() {
                     class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
                 />
             </div>
-            <div v-if="mode === 'range'" class="flex-1">
+            <div v-if="hasSecondDate" class="flex-1">
                 <label
                     class="block text-xs font-semibold uppercase tracking-wide text-rail-soft"
-                    >Au</label
+                    >{{ mode === "roundtrip" ? "Retour" : "Au" }}</label
                 >
                 <input
                     v-model="dateTo"
                     type="date"
+                    data-test="date-to"
                     :min="date || today"
                     class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
                 />
