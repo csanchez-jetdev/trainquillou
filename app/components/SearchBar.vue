@@ -256,7 +256,7 @@ function submit() {
         <button
             type="submit"
             :disabled="loading"
-            class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
+            class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-accent-strong px-4 py-2.5 font-semibold text-white shadow-sm shadow-accent/30 transition hover:shadow-md hover:brightness-105 disabled:opacity-70"
         >
             <Spinner v-if="loading" :size="16" />
             <span>{{ loading ? "Recherche…" : submitLabel }}</span>

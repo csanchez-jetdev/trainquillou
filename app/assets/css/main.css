@@ -1,12 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --color-rail: #0a2540;
-  --color-rail-soft: #1b3a5b;
-  --color-accent: #00b8a9;
-  --color-accent-strong: #009688;
+  /* Bleu nuit (texte, sections sombres) */
+  --color-rail: #0b1f3a;
+  --color-rail-soft: #4a6488;
+  /* Teal vif (accent principal) */
+  --color-accent: #14b8b0;
+  --color-accent-strong: #0e9a93;
+  /* Corail chaud (accent secondaire, pop) */
+  --color-coral: #ff6b5e;
+  --color-coral-strong: #ef5b4e;
+  /* Ambre (détails : notoriété, badges) */
+  --color-sun: #fbbf24;
+  /* Fond crème */
+  --color-cream: #fafaf7;
+
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 html, body, #__nuxt { height: 100%; }
-body { margin: 0; background: #f6f8fb; color: var(--color-rail); }
+body { margin: 0; background: var(--color-cream); color: var(--color-rail); }
+
+/* Texte en dégradé teal -> corail (titres d'accent) */
+.text-gradient {
+  background-image: linear-gradient(90deg, var(--color-accent), var(--color-coral));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

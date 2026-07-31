@@ -72,8 +72,8 @@ function renderRoute(route: RouteResult, selected: number) {
 
   const a = route.from.coords
   const b = route.to.coords
-  if (a) markers.set('__a__', new maplibregl.Marker({ element: dot('#0a2540', 14) }).setLngLat([a[1], a[0]]).addTo(map))
-  if (b) markers.set('__b__', new maplibregl.Marker({ element: dot('#e0245e', 14) }).setLngLat([b[1], b[0]]).addTo(map))
+  if (a) markers.set('__a__', new maplibregl.Marker({ element: dot('#0b1f3a', 14) }).setLngLat([a[1], a[0]]).addTo(map))
+  if (b) markers.set('__b__', new maplibregl.Marker({ element: dot('#ff6b5e', 14) }).setLngLat([b[1], b[0]]).addTo(map))
 
   const it = route.itineraries[selected]
   const pts: [number, number][] = []
@@ -84,7 +84,7 @@ function renderRoute(route: RouteResult, selected: number) {
       pts.push(c)
       // Marqueur intermédiaire (ni A ni B)
       if (i > 0 && i < nodes.length - 1) {
-        const el = dot('#00b8a9', 11)
+        const el = dot('#14b8b0', 11)
         markers.set(`__via_${i}__`, new maplibregl.Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
       }
     })
@@ -93,7 +93,7 @@ function renderRoute(route: RouteResult, selected: number) {
         type: 'geojson',
         data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: nodes.map((c) => [c[1], c[0]]) } },
       })
-      map.addLayer({ id: 'route-line', type: 'line', source: 'route-line', paint: { 'line-color': '#00b8a9', 'line-width': 3, 'line-opacity': 0.7 } })
+      map.addLayer({ id: 'route-line', type: 'line', source: 'route-line', paint: { 'line-color': '#14b8b0', 'line-width': 3, 'line-opacity': 0.75 } })
     }
   } else {
     if (a) pts.push(a)
@@ -125,7 +125,7 @@ function render(result: SearchResult | null | undefined) {
   const o = result.origin.coords
   if (o) {
     const el = document.createElement('div')
-    el.style.cssText = 'width:14px;height:14px;background:#0a2540;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)'
+    el.style.cssText = 'width:14px;height:14px;background:#0b1f3a;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)'
     markers.set('__origin__', new maplibregl.Marker({ element: el }).setLngLat([o[1], o[0]]).addTo(map))
   }
 
@@ -136,7 +136,7 @@ function render(result: SearchResult | null | undefined) {
     const el = document.createElement('div')
     el.className = 'tq-dest-marker'
     el.dataset.label = d.label
-    el.style.cssText = 'width:10px;height:10px;background:#00b8a9;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer;transition:transform .15s'
+    el.style.cssText = 'width:10px;height:10px;background:#14b8b0;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer;transition:transform .15s'
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([d.coords[1], d.coords[0]])
       .setPopup(new maplibregl.Popup({ offset: 12 }).setText(d.label))
@@ -153,7 +153,7 @@ function render(result: SearchResult | null | undefined) {
         features: lineCoords.map((coords) => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } })),
       },
     })
-    map.addLayer({ id: 'lines', type: 'line', source: 'lines', paint: { 'line-color': '#00b8a9', 'line-width': 1.5, 'line-opacity': 0.45 } })
+    map.addLayer({ id: 'lines', type: 'line', source: 'lines', paint: { 'line-color': '#14b8b0', 'line-width': 1.5, 'line-opacity': 0.5 } })
   }
 
   // Fit bounds around all visible points

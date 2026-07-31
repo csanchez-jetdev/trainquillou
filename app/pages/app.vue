@@ -48,7 +48,7 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
     <!-- En-tête de l'app -->
     <header class="z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
       <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-        <span class="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm text-white">T</span>
+        <img src="/logo-mark.png" alt="Trainquillou" class="h-8 w-8 object-contain">
         Trainquillou
       </NuxtLink>
       <NuxtLink to="/" class="text-sm font-medium text-rail-soft transition hover:text-rail">

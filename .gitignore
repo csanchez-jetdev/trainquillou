@@ -18,6 +18,9 @@ logs
 .fleet
 .idea
 
+# Réglages locaux d'outils d'assistance (jamais partagés)
+.claude/settings.local.json
+
 # Local env files
 .env
 .env.*
