@@ -184,11 +184,9 @@ useHead({
       dimensionnée, ce qui compte parce que son cadrage se calcule sur la taille du
       conteneur — masquée en `display:none` pendant qu'une recherche aboutit, elle
       cadrerait sur 0 × 0 et reviendrait sur une vue fausse.
-      Sur desktop : recherche et résultats en colonne à gauche, carte à droite sur toute
-      la hauteur.
-
-      Une grille plutôt qu'un flex ordonné : la carte doit couvrir les deux lignes sur
-      desktop, ce qu'un simple changement d'ordre ne sait pas faire.
+      Sur desktop : la recherche en barre au-dessus des deux colonnes, résultats à gauche,
+      carte à droite. Elle traversait avant la seule colonne de gauche, où elle occupait
+      309 px de haut — davantage que la liste sous elle.
 
       Les trois blocs portent un `col-start-1` explicite. Sans lui, deux éléments qui
       demandent la même ligne sans préciser leur colonne ne se superposent pas : le
@@ -203,8 +201,8 @@ useHead({
     -->
     <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[24rem_minmax(0,1fr)]">
       <!-- Recherche. `relative z-10` : les suggestions de gare doivent passer par-dessus
-           la carte et la liste, ses voisines immédiates sur mobile. -->
-      <div class="relative z-10 col-start-1 row-start-1 border-b border-slate-100 bg-white p-3 md:border-r md:border-slate-200">
+           la carte et la liste, ses voisines immédiates. -->
+      <div class="relative z-10 col-start-1 row-start-1 border-b border-slate-100 bg-white p-3 md:col-span-2 md:border-slate-200">
         <!-- Formulaire replié : résumé cliquable, écran étroit uniquement -->
         <button
           v-if="collapsed"
@@ -232,7 +230,7 @@ useHead({
 
       <!-- Carte. Toujours montée et dimensionnée ; sur mobile la liste passe par-dessus. -->
       <div
-        class="relative z-0 col-start-1 row-start-2 md:col-start-2 md:row-start-1 md:row-end-3"
+        class="relative z-0 col-start-1 row-start-2 md:col-start-2"
         :aria-hidden="mapCovered || undefined"
         :inert="mapCovered || undefined"
       >
