@@ -6,7 +6,7 @@
 
 **Trouvez toutes les destinations TGVmax réservables depuis votre gare, sur une carte interactive.**
 
-Gratuit, sans publicité, sans compte, sans traceur. Open source sous AGPL-3.0.
+Gratuit, sans publicité, sans compte, sans cookie. Open source sous AGPL-3.0.
 
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-14b8b0)](LICENSE)
 [![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white)](https://nuxt.com)
@@ -84,6 +84,13 @@ Placez-le derrière un reverse proxy (Caddy, nginx, Traefik) pour TLS. Le cache 
 un redémarrage le vide, sans conséquence. Comptez environ 200 Mo de RAM, l'essentiel étant
 l'index des 6 469 gares construit au démarrage.
 
+Deux variables d'environnement, toutes deux facultatives :
+
+| Variable | Effet |
+|---|---|
+| `NUXT_PUBLIC_SITE_URL` | URL publique, pour les liens canoniques et le sitemap |
+| `NUXT_PUBLIC_RYBBIT_SITE_ID` | Active la mesure d'audience [Rybbit](https://rybbit.io) avec **votre** identifiant. Non définie, aucun script tiers n'est chargé |
+
 La licence AGPL-3.0 vous autorise à héberger votre propre instance, y compris modifiée, à
 condition de publier vos modifications.
 
@@ -118,6 +125,16 @@ Elles viennent du dataset open data SNCF `tgvmax`, mis à jour par la SNCF, et s
 
 Non, et ce n'est pas prévu. Il n'y a ni compte, ni paywall, ni publicité. Trainquillou est un
 service gratuit, sans but lucratif.
+
+### Mes visites sont-elles suivies ?
+
+L'instance officielle mesure son audience avec [Rybbit](https://rybbit.io) : sans cookie, sans
+identifiant persistant, sans profil publicitaire, données hébergées dans l'UE. Aucun bandeau de
+consentement n'est nécessaire, faute de donnée personnelle collectée.
+
+Rien de tout cela n'est actif dans le code que vous clonez : la mesure ne s'active que si vous
+fournissez votre propre identifiant au build (voir ci-dessous). Une instance auto-hébergée
+n'envoie donc rien, ni à nous ni à personne.
 
 ### Combien de gares sont couvertes ?
 
@@ -187,8 +204,9 @@ Les contributions sont bienvenues. Quelques conventions :
 - TypeScript strict, pas de `any` silencieux.
 - La logique pure va dans `server/utils/` et se teste sans réseau. Les tests ne doivent jamais
   appeler l'API SNCF : utilisez les fixtures de `test/fixtures/`.
-- Pas de paywall, pas d'authentification, pas de traceur analytique. Ce n'est pas négociable,
-  c'est la raison d'être du projet.
+- Pas de paywall, pas d'authentification, pas de publicité, pas de profilage publicitaire.
+  Ce n'est pas négociable, c'est la raison d'être du projet. La mesure d'audience de l'instance
+  officielle est sans cookie et désactivée par défaut dans le code.
 
 Avant d'ouvrir une PR : `pnpm test && pnpm build`.
 

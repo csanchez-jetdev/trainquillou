@@ -1,6 +1,17 @@
 import tailwindcss from '@tailwindcss/vite'
 import { STATION_PAGES } from './shared/stations'
 
+/**
+ * Mesure d'audience Rybbit : sans cookie, sans identifiant persistant, données
+ * hébergées dans l'UE.
+ *
+ * Volontairement vide par défaut. Ce dépôt est public et l'auto-hébergement est une
+ * fonctionnalité annoncée : coder l'identifiant en dur enverrait le trafic d'une
+ * instance tierce vers un compte qu'elle n'a pas choisi. L'instance officielle le
+ * fournit par variable d'environnement au moment du build (voir infra/deploy.sh).
+ */
+const RYBBIT_SITE_ID = process.env.NUXT_PUBLIC_RYBBIT_SITE_ID ?? ''
+
 const TITLE = 'Trainquillou — toutes les destinations TGVmax sur une carte'
 const DESCRIPTION
   = 'Trouvez les destinations TGVmax réservables depuis votre gare, sur une carte interactive. '
@@ -62,6 +73,13 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
       ],
+      script: RYBBIT_SITE_ID
+        ? [{
+            src: 'https://app.rybbit.io/api/script.js',
+            defer: true,
+            'data-site-id': RYBBIT_SITE_ID,
+          }]
+        : [],
     },
   },
 })

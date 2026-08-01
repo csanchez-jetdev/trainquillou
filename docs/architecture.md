@@ -258,9 +258,15 @@ sur `useState`. **Pas de Pinia** : le besoin ne le justifie pas.
 
 ## Ce que le projet n'est pas
 
-Pas d'authentification, pas de comptes, pas de paiement, pas de tracking analytics. Ce n'est pas
-un oubli : c'est la raison d'être de cette réécriture. La v1 de l'application avait un paywall
-qui limitait le nombre de recherches ; v2 s'en débarrasse et ne le réintroduira pas.
+Pas d'authentification, pas de comptes, pas de paiement, pas de publicité. Ce n'est pas un
+oubli : c'est la raison d'être de cette réécriture. La v1 de l'application avait un paywall qui
+limitait le nombre de recherches ; v2 s'en débarrasse et ne le réintroduira pas.
+
+L'instance officielle mesure son audience avec Rybbit — sans cookie, sans identifiant
+persistant, sans profil publicitaire, hébergé dans l'UE. `NUXT_PUBLIC_RYBBIT_SITE_ID` est vide
+par défaut : le dépôt étant public et l'auto-hébergement une fonctionnalité annoncée, coder
+l'identifiant en dur enverrait le trafic d'une instance tierce vers un compte qu'elle n'a pas
+choisi. L'instance officielle le fournit au build.
 
 Trainquillou ne réserve pas les billets et n'est pas affilié à la SNCF. Il montre où aller ; la
 réservation se fait sur SNCF Connect.
