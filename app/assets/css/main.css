@@ -15,6 +15,19 @@
   /* Fond crème */
   --color-cream: #fafaf7;
 
+  /*
+   * Couleurs des deux revendeurs, relevées sur leurs propres pages (styles calculés,
+   * pas une palette de seconde main) : reconnaître la destination d'un lien sortant
+   * avant de cliquer vaut mieux que deux liens soulignés identiques.
+   *
+   * `trainline` est le vert foncé de leurs propres boutons, pas le vert clair de leur
+   * logo (#00a88f) : celui-ci ne donne que 3:1 avec du texte blanc, sous le seuil AA.
+   */
+  --color-sncf: #0c131f;
+  --color-sncf-hover: #242a3e;
+  --color-trainline: #00705f;
+  --color-trainline-hover: #00a88f;
+
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
