@@ -190,25 +190,33 @@ function formatDate(iso: string): string {
       </template>
     </div>
 
-    <!-- Réservation -->
-    <div v-if="legSlugs" class="flex items-center gap-3 border-t border-slate-100 bg-slate-50/60 px-3.5 py-2.5 text-xs">
-      <a
-        :href="sncfConnectUrl(legSlugs.from, legSlugs.to)"
-        target="_blank"
-        rel="noopener"
-        data-test="popover-book-sncf"
-        class="font-semibold text-accent-strong underline decoration-accent/40 hover:decoration-accent"
-      >
-        Réserver sur SNCF Connect
-      </a>
-      <a
-        :href="trainlineUrl(legSlugs.from, legSlugs.to)"
-        target="_blank"
-        rel="noopener"
-        class="text-rail-soft underline decoration-slate-300 hover:text-rail"
-      >
-        Trainline
-      </a>
+    <!--
+      Réservation. Chaque revendeur porte sa propre couleur : on sort du site, autant
+      savoir où l'on arrive. Deux moitiés égales — `basis-1/2` et non `flex-1`, dont la
+      base `auto` répartirait selon la longueur du libellé.
+    -->
+    <div v-if="legSlugs" class="border-t border-slate-100 bg-slate-50/60 px-3.5 py-2.5">
+      <p class="text-[11px] font-medium text-rail-soft">Réserver ce trajet</p>
+      <div class="mt-1.5 flex items-stretch gap-2">
+        <a
+          :href="sncfConnectUrl(legSlugs.from, legSlugs.to)"
+          target="_blank"
+          rel="noopener"
+          data-test="popover-book-sncf"
+          class="flex basis-1/2 items-center justify-center rounded-lg bg-sncf px-3 py-2 text-xs font-semibold text-white transition hover:bg-sncf-hover"
+        >
+          SNCF Connect
+        </a>
+        <a
+          :href="trainlineUrl(legSlugs.from, legSlugs.to)"
+          target="_blank"
+          rel="noopener"
+          data-test="popover-book-trainline"
+          class="flex basis-1/2 items-center justify-center rounded-lg bg-trainline px-3 py-2 text-xs font-semibold text-white transition hover:bg-trainline-hover"
+        >
+          Trainline
+        </a>
+      </div>
     </div>
   </div>
 </template>

@@ -48,6 +48,7 @@ const TINTS: Array<{ id: string; prop: string; color: string }> = [
 
 const instance = getCurrentInstance()
 let map: maplibregl.Map | null = null
+let sizeObserver: ResizeObserver | null = null
 /**
  * Le style est chargé et les couches peuvent être ajoutées. On ne peut pas se fier à
  * `map.loaded()` : il renvoie `false` pendant une animation de caméra, et un
@@ -160,7 +161,28 @@ onMounted(async () => {
       // L'attribution (OpenFreeMap, OpenMapTiles, OpenStreetMap) vient du TileJSON de
       // la source : la déclarer ici la ferait apparaître en double.
       attributionControl: { compact: true },
+      // Le suivi de taille est fait ici, voir plus bas.
+      trackResize: false,
     })
+
+    /**
+     * Suivi de la taille du conteneur, à la place de celui de MapLibre. Le sien écarte sa
+     * première notification — celle que `ResizeObserver` émet toujours à l'abonnement —
+     * pour ne pas refaire le calcul du constructeur. Mais si la mise en page bouge dans la
+     * même frame que la création de la carte, les deux tailles se fondent en une seule
+     * notification, celle-ci est écartée, et le canevas reste figé à sa taille de départ
+     * pour de bon. C'est le cas ici dès qu'une recherche aboutit : elle replie le
+     * formulaire, la ligne de la carte grandit d'autant, et la carte s'arrêtait aux deux
+     * tiers de sa ligne sur mobile.
+     */
+    let lastSize = ''
+    sizeObserver = new ResizeObserver(() => {
+      const size = `${container.clientWidth}×${container.clientHeight}`
+      if (size === lastSize) return
+      lastSize = size
+      map?.resize()
+    })
+    sizeObserver.observe(container)
     // Render initial state once map tiles are ready
     map.once('load', () => {
       styleReady = true
@@ -177,6 +199,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  sizeObserver?.disconnect()
+  sizeObserver = null
   map?.remove()
   map = null
 })
@@ -190,6 +214,24 @@ function removeLayerSource(id: string) {
   if (!map) return
   if (map.getLayer(id)) map.removeLayer(id)
   if (map.getSource(id)) map.removeSource(id)
+}
+
+/**
+ * Marge du cadrage, en pixels. Elle était fixée à 400 px à gauche, du temps où la carte
+ * passait en pleine largeur sous la colonne de recherche ; celle-ci occupe désormais sa
+ * propre colonne de grille et cette marge ne faisait plus que tasser les points contre le
+ * bord droit. Sur un téléphone elle était fatale : 400 px de marge dans 393 px de large
+ * donnent une largeur utile négative, et le cadrage sortait la moitié des marqueurs du
+ * cadre — dont la gare de départ.
+ *
+ * Donc une fraction du conteneur, plafonnée : une marge doit aérer le cadrage, pas le
+ * manger, et elle ne peut jamais dépasser ce qu'elle borde.
+ */
+function fitPadding(): maplibregl.PaddingOptions {
+  const el = map?.getContainer()
+  const x = Math.min(60, Math.round((el?.clientWidth ?? 480) / 8))
+  const y = Math.min(60, Math.round((el?.clientHeight ?? 480) / 8))
+  return { top: y, bottom: y, left: x, right: x }
 }
 
 /** Crée un élément DOM de marqueur (pastille colorée). */
@@ -245,7 +287,7 @@ function renderRoute(route: RouteResult, selected: number) {
   if (pts.length > 1) {
     const bounds = new maplibregl.LngLatBounds()
     pts.forEach((p) => bounds.extend([p[1], p[0]]))
-    map.fitBounds(bounds, { padding: { top: 60, bottom: 60, left: 400, right: 60 }, maxZoom: 8, duration: 800 })
+    map.fitBounds(bounds, { padding: fitPadding(), maxZoom: 8, duration: 800 })
   }
 }
 
@@ -328,7 +370,7 @@ function render(result: SearchResult | null | undefined) {
   if (pts.length > 1) {
     const b = new maplibregl.LngLatBounds()
     pts.forEach((p) => b.extend([p[1], p[0]]))
-    map.fitBounds(b, { padding: { top: 60, bottom: 60, left: 400, right: 60 }, maxZoom: 8, duration: 800 })
+    map.fitBounds(b, { padding: fitPadding(), maxZoom: 8, duration: 800 })
   }
 }
 

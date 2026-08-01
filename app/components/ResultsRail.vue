@@ -201,8 +201,11 @@ const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-30
       </div>
 
       <!-- Pleine largeur, séparées par des filets : 74 rectangles bordés faisaient une
-           échelle. La marge négative annule le padding de la colonne. -->
-      <ul v-if="visible.length" class="-mx-3 divide-y divide-slate-100 overflow-auto border-t border-slate-100">
+           échelle. La marge négative annule le padding de la colonne.
+           `pb-14` sur mobile : de quoi faire défiler la dernière destination au-dessus de
+           la bascule carte / liste, qui flotte par-dessus le bas de la liste. Du défilement
+           en plus, pas de la hauteur utile en moins. -->
+      <ul v-if="visible.length" class="-mx-3 divide-y divide-slate-100 overflow-auto border-t border-slate-100 pb-14 md:pb-0">
         <DestinationCard
           v-for="d in visible"
           :key="d.label"
