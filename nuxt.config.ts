@@ -32,7 +32,14 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
-  vite: { plugins: [tailwindcss()] },
+  vite: {
+    plugins: [tailwindcss()],
+    optimizeDeps: {
+      include: [
+        'maplibre-gl', // CJS
+      ],
+    },
+  },
 
   nitro: {
     prerender: {
