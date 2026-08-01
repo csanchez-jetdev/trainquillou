@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cleanString, sameStation } from '~~/server/utils/normalize'
+import { cleanString, sameStation } from '~~/shared/normalize'
 
 describe('cleanString', () => {
   it('lowercases, strips accents and punctuation', () => {

@@ -1,4 +1,4 @@
-import { cleanString } from './normalize'
+import { cleanString } from '~~/shared/normalize'
 
 export type Coords = [number, number] // [lat, lon]
 export type CoordsIndex = Map<string, Coords>
@@ -137,7 +137,15 @@ const LABEL_ALIASES: Record<string, string> = {
   'angoula me': 'angouleme',
 }
 
-export function buildCoordsIndex(records: Array<{ libelle?: string; commune?: string; x_wgs84?: number; y_wgs84?: number }>): CoordsIndex {
+/** One row of the SNCF "liste-des-gares" reference file (`gares.json`). */
+export interface GareRecord {
+  libelle?: string
+  commune?: string
+  x_wgs84?: number // longitude
+  y_wgs84?: number // latitude
+}
+
+export function buildCoordsIndex(records: GareRecord[]): CoordsIndex {
   const index: CoordsIndex = new Map()
   for (const g of records) {
     if (typeof g.x_wgs84 !== 'number' || typeof g.y_wgs84 !== 'number') continue

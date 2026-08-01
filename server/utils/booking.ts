@@ -1,4 +1,4 @@
-import { cleanString } from './normalize'
+import { cleanString } from '~~/shared/normalize'
 import { bookingSlug } from '~~/shared/stations'
 
 /**

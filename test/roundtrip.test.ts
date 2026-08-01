@@ -1,6 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { groupRoundTrip } from '~~/server/utils/sncf'
+import { groupRoundTrip, pageOffsets } from '~~/server/utils/sncf'
 import type { RawRecord } from '~~/server/utils/sncf'
+
+describe('pageOffsets', () => {
+  it('ne demande aucune page supplémentaire quand la première suffit', () => {
+    expect(pageOffsets(0)).toEqual([])
+    expect(pageOffsets(1)).toEqual([])
+    expect(pageOffsets(100)).toEqual([])
+  })
+
+  it('couvre le total sans trou ni page vide', () => {
+    expect(pageOffsets(101)).toEqual([100])
+    expect(pageOffsets(250)).toEqual([100, 200])
+    // Pile un multiple de la taille de page : pas de page fantôme à la fin.
+    expect(pageOffsets(300)).toEqual([100, 200])
+  })
+
+  it('s\'arrête à l\'offset maximum accepté en amont', () => {
+    // Opendatasoft refuse offset >= 10000, quel que soit le total annoncé.
+    expect(pageOffsets(50000).at(-1)).toBe(9900)
+    expect(pageOffsets(50000)).toHaveLength(99)
+  })
+})
 
 function rec(over: Partial<RawRecord>): RawRecord {
   return {

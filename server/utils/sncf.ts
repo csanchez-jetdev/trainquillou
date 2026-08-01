@@ -1,8 +1,12 @@
-import { cleanString } from './normalize'
+import { cleanString } from '~~/shared/normalize'
 import type { Destination, Train } from '~~/shared/types'
 
 const BASE = 'https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax'
 const PAGE = 100
+/** Opendatasoft refuses an offset beyond this on the records endpoint. */
+const MAX_OFFSET = 10000
+/** Pages requested at once. Bounded: the upstream throttles anonymous callers. */
+const CONCURRENCY = 4
 
 export interface RawRecord {
   date: string
@@ -19,10 +23,16 @@ interface RecordsResponse {
   results: RawRecord[]
 }
 
+/** Offsets of the pages following the first one, for an upstream `total_count`. */
+export function pageOffsets(totalCount: number): number[] {
+  const total = Math.min(totalCount || 0, MAX_OFFSET)
+  const offsets: number[] = []
+  for (let offset = PAGE; offset < total; offset += PAGE) offsets.push(offset)
+  return offsets
+}
+
 async function fetchRecords(params: Record<string, string | string[]>): Promise<RawRecord[]> {
-  const all: RawRecord[] = []
-  let offset = 0
-  while (true) {
+  const page = (offset: number) => {
     const url = new URL(`${BASE}/records`)
     for (const [k, v] of Object.entries(params)) {
       if (Array.isArray(v)) v.forEach((x) => url.searchParams.append(k, x))
@@ -30,10 +40,19 @@ async function fetchRecords(params: Record<string, string | string[]>): Promise<
     }
     url.searchParams.set('limit', String(PAGE))
     url.searchParams.set('offset', String(offset))
-    const res = await $fetch<RecordsResponse>(url.toString())
-    all.push(...(res.results || []))
-    offset += PAGE
-    if (offset >= (res.total_count || 0) || offset >= 10000) break
+    return $fetch<RecordsResponse>(url.toString())
+  }
+
+  // The first response carries `total_count`, so the remaining offsets are known up front and
+  // no longer have to wait on one another: a 30-day range from Paris paginated 20+ times in
+  // series. Batched rather than fired all at once, to stay a polite caller.
+  const first = await page(0)
+  const all = [...(first.results || [])]
+  const offsets = pageOffsets(first.total_count)
+
+  for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+    const batch = await Promise.all(offsets.slice(i, i + CONCURRENCY).map(page))
+    for (const res of batch) all.push(...(res.results || []))
   }
   return all
 }

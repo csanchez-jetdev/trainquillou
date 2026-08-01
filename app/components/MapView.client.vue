@@ -241,13 +241,15 @@ function renderRoute(route: RouteResult, selected: number) {
   const pts: [number, number][] = []
   if (it) {
     const nodes = [it.legs[0]?.fromCoords, ...it.legs.map((l) => l.toCoords)].filter(Boolean) as [number, number][]
-    nodes.forEach((c, i) => {
+    // A loop and not `forEach`: inside a callback TypeScript widens `map` back to nullable,
+    // the guard at the top of the function no longer covering it.
+    for (const [i, c] of nodes.entries()) {
       pts.push(c)
       if (i > 0 && i < nodes.length - 1) {
         const el = dot('#14b8b0', 14)
         markers.set(`__via_${i}__`, new maplibregl.Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
       }
-    })
+    }
     if (nodes.length > 1) {
       map.addSource('route-line', {
         type: 'geojson',

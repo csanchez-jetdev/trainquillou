@@ -1,4 +1,4 @@
-import { cleanString } from './normalize'
+import { cleanString } from '~~/shared/normalize'
 
 /**
  * Tourist notoriety score per station = number of Wikipedia language editions for the city
