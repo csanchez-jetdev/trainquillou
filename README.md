@@ -59,7 +59,7 @@ Prérequis : **Node 20+** et **pnpm**.
 git clone https://github.com/csanchez-jetdev/trainquillou.git
 cd trainquillou
 pnpm install
-pnpm dev          # http://localhost:3000
+pnpm dev          # http://localhost:3001
 ```
 
 Aucune clé d'API, aucun compte, aucun fichier `.env` : l'open data SNCF est ouvert et le
@@ -170,7 +170,7 @@ format stable. Elles sont utilisables telles quelles si vous auto-hébergez.
 exigent `dateTo`.
 
 ```bash
-curl 'http://localhost:3000/api/search?origin=LYON%20(intramuros)&date=2026-08-14'
+curl 'http://localhost:3001/api/search?origin=LYON%20(intramuros)&date=2026-08-14'
 ```
 
 ## Architecture

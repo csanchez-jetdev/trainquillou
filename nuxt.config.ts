@@ -32,6 +32,13 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
+
+  // 3000 est le port par défaut de trop de choses — dont Langfuse, qui tourne en
+  // conteneur sur la machine de développement. Sans port fixe, Nuxt en choisit un
+  // libre au hasard et les URL de test changent d'une session à l'autre.
+  // Surchargeable par `PORT` ou `pnpm dev --port`. Ne concerne pas la production,
+  // dont le port est fixé par infra/compose.yml.
+  devServer: { port: 3001 },
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {
