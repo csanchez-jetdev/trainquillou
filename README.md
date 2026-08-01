@@ -104,9 +104,8 @@ Elles viennent du dataset open data SNCF `tgvmax`, mis à jour par la SNCF, et s
 
 ### Faut-il créer un compte ?
 
-Non, et ce n'est pas prévu. Il n'y a ni compte, ni paywall, ni publicité, ni traceur analytique.
-La version précédente de cette application limitait le nombre de recherches derrière un paywall ;
-cette réécriture s'en débarrasse.
+Non, et ce n'est pas prévu. Il n'y a ni compte, ni paywall, ni publicité. Trainquillou est un
+service gratuit, sans but lucratif.
 
 ### Combien de gares sont couvertes ?
 
@@ -199,8 +198,6 @@ ODbL, indépendamment de la licence du code.
 [AGPL-3.0](LICENSE). Vous pouvez héberger, modifier et redistribuer ce projet ; toute version
 hébergée modifiée doit republier son code source. Autrement dit : personne ne peut refermer
 Trainquillou derrière un paywall.
-
-Le nom « Trainquillou » et le logo ne sont pas couverts par cette licence.
 
 ---
 

@@ -19,9 +19,61 @@ const emit = defineEmits<{
   'show-returns': [string]
 }>()
 
+/**
+ * Fond de carte OpenFreeMap : vectoriel, libre, sans clé d'API ni quota, et
+ * auto-hébergeable — cohérent avec un projet qui ne veut aucune dépendance à clé.
+ * Données OpenStreetMap, schéma OpenMapTiles.
+ */
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
+
+/**
+ * Libellés en français quand la tuile les porte. Le style d'origine affiche `name:latin`,
+ * ce qui donnait « Brittany », « Upper France » ou « New Aquitania » sur une carte française.
+ */
+const FRENCH_LABELS = ['coalesce', ['get', 'name:fr'], ['get', 'name:latin'], ['get', 'name']]
+
+/**
+ * Teintes calées sur la charte : fond crème, eau bleu-vert désaturée. Le fond doit rester
+ * en retrait pour que les tracés teal et les marqueurs corail se détachent.
+ */
+const TINTS: Array<{ id: string; prop: string; color: string }> = [
+  { id: 'background', prop: 'background-color', color: '#faf9f5' },
+  { id: 'water', prop: 'fill-color', color: '#d8e7ea' },
+  { id: 'park', prop: 'fill-color', color: '#e9ece3' },
+  { id: 'landcover_wood', prop: 'fill-color', color: '#e4e9e0' },
+  { id: 'landuse_residential', prop: 'fill-color', color: '#f3f1ec' },
+]
+
 const instance = getCurrentInstance()
 let map: maplibregl.Map | null = null
 const markers = new Map<string, maplibregl.Marker>()
+
+/** Francise les libellés et applique la teinte de la charte au style chargé. */
+function styleBaseMap() {
+  if (!map) return
+
+  for (const layer of map.getStyle().layers ?? []) {
+    if (layer.type !== 'symbol') continue
+    const textField = layer.layout?.['text-field']
+    // Uniquement les couches qui affichent un nom : les écussons de route utilisent
+    // `ref` et seraient vidés par la substitution.
+    if (!textField || !JSON.stringify(textField).includes('name')) continue
+    try {
+      map.setLayoutProperty(layer.id, 'text-field', FRENCH_LABELS)
+    } catch {
+      // Une couche du style amont a changé de forme : on garde son libellé d'origine.
+    }
+  }
+
+  for (const { id, prop, color } of TINTS) {
+    if (!map.getLayer(id)) continue
+    try {
+      map.setPaintProperty(id, prop, color)
+    } catch {
+      // Idem : la teinte est cosmétique, son échec ne doit pas casser la carte.
+    }
+  }
+}
 
 const selectedDest = computed(
   () => props.result?.destinations.find((d) => d.label === props.selected) ?? null,
@@ -73,13 +125,18 @@ onMounted(async () => {
   try {
     map = new maplibregl.Map({
       container,
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      style: MAP_STYLE,
       center: [2.4, 46.5],
       zoom: 5,
+      // L'attribution (OpenFreeMap, OpenMapTiles, OpenStreetMap) vient du TileJSON de
+      // la source : la déclarer ici la ferait apparaître en double.
       attributionControl: { compact: true },
     })
     // Render initial state once map tiles are ready
-    map.once('load', () => draw())
+    map.once('load', () => {
+      styleBaseMap()
+      draw()
+    })
     // La fiche est positionnée en pixels : elle doit suivre la carte.
     map.on('move', syncPopover)
     // Un clic sur le fond, hors marqueur, referme la fiche.
@@ -108,7 +165,7 @@ function removeLayerSource(id: string) {
 /** Crée un élément DOM de marqueur (pastille colorée). */
 function dot(color: string, size: number): HTMLDivElement {
   const el = document.createElement('div')
-  el.style.cssText = `width:${size}px;height:${size}px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)`
+  el.style.cssText = `width:${size}px;height:${size}px;background:${color};border-radius:50%;border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45);box-sizing:border-box`
   return el
 }
 
@@ -127,8 +184,8 @@ function renderRoute(route: RouteResult, selected: number) {
 
   const a = route.from.coords
   const b = route.to.coords
-  if (a) markers.set('__a__', new maplibregl.Marker({ element: dot('#0b1f3a', 14) }).setLngLat([a[1], a[0]]).addTo(map))
-  if (b) markers.set('__b__', new maplibregl.Marker({ element: dot('#ff6b5e', 14) }).setLngLat([b[1], b[0]]).addTo(map))
+  if (a) markers.set('__a__', new maplibregl.Marker({ element: dot('#0b1f3a', 18) }).setLngLat([a[1], a[0]]).addTo(map))
+  if (b) markers.set('__b__', new maplibregl.Marker({ element: dot('#ff6b5e', 18) }).setLngLat([b[1], b[0]]).addTo(map))
 
   const it = route.itineraries[selected]
   const pts: [number, number][] = []
@@ -139,7 +196,7 @@ function renderRoute(route: RouteResult, selected: number) {
       pts.push(c)
       // Marqueur intermédiaire (ni A ni B)
       if (i > 0 && i < nodes.length - 1) {
-        const el = dot('#14b8b0', 11)
+        const el = dot('#14b8b0', 14)
         markers.set(`__via_${i}__`, new maplibregl.Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
       }
     })
@@ -179,8 +236,10 @@ function render(result: SearchResult | null | undefined) {
 
   const o = result.origin.coords
   if (o) {
+    // La gare de référence : plus grosse et en navy, pour se distinguer des destinations.
     const el = document.createElement('div')
-    el.style.cssText = 'width:14px;height:14px;background:#0b1f3a;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)'
+    el.style.cssText = 'width:18px;height:18px;background:#0b1f3a;border-radius:50%;border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45);box-sizing:border-box'
+    el.title = result.origin.label
     markers.set('__origin__', new maplibregl.Marker({ element: el }).setLngLat([o[1], o[0]]).addTo(map))
   }
 
@@ -191,16 +250,19 @@ function render(result: SearchResult | null | undefined) {
     // MapLibre positionne le marqueur en écrivant `transform` sur CET élément : toute
     // animation doit viser la pastille enfant, sinon le marqueur saute à l'origine
     // de la carte jusqu'au prochain déplacement.
+    //
+    // L'élément fait 28 px et reste transparent : la zone de clic est volontairement
+    // bien plus large que la pastille, viser 14 px au doigt étant pénible.
     const el = document.createElement('div')
     el.className = 'tq-dest-marker'
     el.dataset.label = d.label
-    el.style.cssText = 'width:10px;height:10px;cursor:pointer'
+    el.style.cssText = 'width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation'
     el.setAttribute('role', 'button')
     el.setAttribute('aria-label', d.label)
 
     const pin = document.createElement('div')
     pin.className = 'tq-dot'
-    pin.style.cssText = 'width:100%;height:100%;background:#14b8b0;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);box-sizing:border-box;transition:transform .15s'
+    pin.style.cssText = 'width:14px;height:14px;background:#14b8b0;border-radius:50%;border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35);box-sizing:border-box;transition:transform .15s'
     el.appendChild(pin)
 
     el.addEventListener('click', (event) => {

@@ -124,7 +124,8 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
 
         <p class="shrink-0 border-t border-slate-100 px-3 py-2 text-[11px] text-rail-soft/80">
           Données <a class="underline" href="https://data.sncf.com/explore/dataset/tgvmax/" target="_blank" rel="noopener">open data SNCF</a> ·
-          carte © OpenStreetMap, MapLibre
+          fond de carte <a class="underline" href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, données
+          <a class="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
         </p>
       </aside>
     </div>

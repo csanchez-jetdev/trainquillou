@@ -63,6 +63,24 @@ l'open data SNCF reviendrait à marteler leur API à chaque build.
 
 Les slugs viennent de `shared/booking.json`, la même table que les liens de réservation.
 
+## Fond de carte
+
+[OpenFreeMap](https://openfreemap.org) sert les tuiles vectorielles : libre, sans clé d'API ni
+quota, et auto-hébergeable — cohérent avec un projet qui refuse toute dépendance à clé. Données
+OpenStreetMap, schéma OpenMapTiles.
+
+Deux retouches sont appliquées au style une fois chargé (`styleBaseMap`) :
+
+- **Libellés en français.** Le style amont affiche `name:latin`, ce qui donnait « Brittany »,
+  « Upper France » et « New Aquitania » sur une carte française. On substitue
+  `coalesce(name:fr, name:latin, name)` — mais uniquement sur les couches dont le libellé
+  contient un nom : les écussons de route utilisent `ref` et seraient vidés.
+- **Teinte de la charte** : fond crème, eau bleu-vert désaturée. Le fond doit rester en retrait
+  pour que les tracés teal et les marqueurs corail se détachent.
+
+L'attribution provient du TileJSON de la source et s'affiche seule : la déclarer via
+`customAttribution` la ferait apparaître en double.
+
 ## Liens de réservation
 
 Ni SNCF Connect ni Trainline n'exposent de lien profond vers une recherche pré-remplie : leurs
@@ -158,6 +176,7 @@ sur `useState`. **Pas de Pinia** : le besoin ne le justifie pas.
 | Sujet | Choix | Pourquoi |
 |---|---|---|
 | Carte | MapLibre GL | Rendu vectoriel, pas de clé API, fork libre de Mapbox GL |
+| Fond de carte | OpenFreeMap | Libre, sans clé ni quota, auto-hébergeable — comme le reste du projet |
 | Licence | AGPL-3.0 | Une version hébergée modifiée doit republier son code : personne ne peut refermer le projet derrière un paywall |
 | Store | `useState` + composables | Pas assez d'état partagé pour justifier Pinia |
 | Coordonnées | Référentiel embarqué | Pas d'appel réseau ni de clé pour géocoder ; index construit une fois au démarrage |

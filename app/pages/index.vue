@@ -290,7 +290,8 @@ useHead({
         </p>
         <p>
           Données <a class="underline hover:text-rail" href="https://data.sncf.com/explore/dataset/tgvmax/" target="_blank" rel="noopener">open data SNCF</a>
-          · fond de carte © <a class="underline hover:text-rail" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, MapLibre
+          · fond de carte <a class="underline hover:text-rail" href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>,
+          données © <a class="underline hover:text-rail" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
           · licence AGPL-3.0
         </p>
         <p class="text-rail-soft/70">Non affilié à la SNCF. La réservation des places TGVmax se fait sur SNCF Connect.</p>
