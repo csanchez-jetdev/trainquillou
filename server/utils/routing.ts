@@ -1,4 +1,4 @@
-import { cleanString, sameStation } from './normalize'
+import { cleanString, sameStation } from '~~/shared/normalize'
 import { fetchOutbound, fetchInbound, type RawRecord } from './sncf'
 import type { Itinerary, RouteLeg } from '~~/shared/types'
 

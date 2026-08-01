@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { RouteResult } from '~~/shared/types'
 
-const props = defineProps<{
+defineProps<{
   route: (RouteResult & { truncated?: boolean }) | null | undefined
   pending: boolean
   error: unknown

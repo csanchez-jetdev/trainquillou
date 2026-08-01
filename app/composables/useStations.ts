@@ -1,4 +1,4 @@
-import { cleanString } from '~~/server/utils/normalize'
+import { cleanString } from '~~/shared/normalize'
 
 export function useStations() {
   const { data: stations } = useFetch<string[]>('/api/stations', {

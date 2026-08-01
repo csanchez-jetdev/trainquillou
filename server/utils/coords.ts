@@ -1,4 +1,4 @@
-import { buildCoordsIndex, type CoordsIndex } from './stations'
+import { buildCoordsIndex, type CoordsIndex, type GareRecord } from './stations'
 
 let coordsIndex: CoordsIndex | null = null
 
@@ -6,7 +6,7 @@ let coordsIndex: CoordsIndex | null = null
 export async function getCoordsIndex(): Promise<CoordsIndex> {
   if (!coordsIndex) {
     try {
-      const records = await useStorage('assets:server').getItem<any[]>('gares.json')
+      const records = await useStorage('assets:server').getItem<GareRecord[]>('gares.json')
       coordsIndex = buildCoordsIndex(records || [])
     } catch {
       coordsIndex = new Map()

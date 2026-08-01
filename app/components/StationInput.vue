@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { cleanString } from '~~/server/utils/normalize'
+import { cleanString } from '~~/shared/normalize'
 
 /** Station field with autocomplete, built to live *inside* a bordered group: it has no
  *  border or background of its own, and its label is inline. */

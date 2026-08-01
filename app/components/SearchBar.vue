@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SearchMode } from '~~/shared/types'
 import { todayISO, lastBookableISO, BOOKING_WINDOW_DAYS } from '~~/shared/window'
-import { cleanString } from '~~/server/utils/normalize'
+import { cleanString } from '~~/shared/normalize'
 
 type BarMode = SearchMode | 'route'
 /** How dates are picked. The search mode follows from it, it is never chosen directly. */
