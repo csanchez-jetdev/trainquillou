@@ -41,11 +41,24 @@ export function stationBySlug(slug: string): StationEntry | undefined {
   return STATION_PAGES.find((s) => s.slug === slug)
 }
 
-/** Nom lisible d'une gare : « MARSEILLE ST CHARLES » devient « Marseille St Charles ». */
+/** Sigles que la mise en forme ne doit pas capitaliser comme des mots. */
+const ACRONYMS = new Set(['TGV', 'SNCF', 'CDG', 'HBF', 'HB', 'SBB', 'RER', 'TER', 'BV'])
+
+/**
+ * Nom lisible d'une gare : « MARSEILLE ST CHARLES » devient « Marseille St Charles »,
+ * « AVIGNON TGV » reste « Avignon TGV ».
+ */
 export function prettyLabel(label: string): string {
   return label
-    .toLocaleLowerCase('fr')
-    .replace(/\(intramuros\)/g, '')
+    .replace(/\(intramuros\)/gi, '')
     .trim()
-    .replace(/(^|[\s'-])(\p{L})/gu, (_, sep: string, c: string) => sep + c.toLocaleUpperCase('fr'))
+    .split(/(\s+)/)
+    .map((chunk) => {
+      if (/^\s+$/.test(chunk)) return chunk
+      if (ACRONYMS.has(chunk.toUpperCase().replace(/[.]/g, ''))) return chunk.toUpperCase()
+      return chunk
+        .toLocaleLowerCase('fr')
+        .replace(/(^|['-])(\p{L})/gu, (_, sep: string, c: string) => sep + c.toLocaleUpperCase('fr'))
+    })
+    .join('')
 }

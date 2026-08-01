@@ -6,6 +6,11 @@ const itinerary = useItinerary()
 const { cache: returnsCache, loading: returnsLoading, load: loadReturns } = useReturns()
 const hovered = ref<string | null>(null)
 const selectedRoute = ref(0)
+/** Destination dont la fiche est ouverte sur la carte. */
+const selectedDestination = ref<string | null>(null)
+
+// Une nouvelle recherche invalide la sélection : la gare peut ne plus être dans les résultats.
+watch(result, () => { selectedDestination.value = null })
 
 const isRoute = computed(() => mode.value === 'route')
 
@@ -66,6 +71,11 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
           :route="isRoute ? itinerary.route.value : null"
           :selected-route="selectedRoute"
           :hovered="hovered"
+          :selected="selectedDestination"
+          :returns-loading="returnsLoading"
+          :returns="returnsByDest"
+          @select="selectedDestination = $event"
+          @show-returns="onShowReturns"
         />
       </div>
 

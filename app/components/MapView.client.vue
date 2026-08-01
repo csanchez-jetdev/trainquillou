@@ -1,18 +1,69 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import type { SearchResult, RouteResult } from '~~/shared/types'
+import type { SearchResult, RouteResult, ReturnDatesResult } from '~~/shared/types'
 
 const props = defineProps<{
   result: SearchResult | null | undefined
   route?: (RouteResult & { truncated?: boolean }) | null
   selectedRoute?: number
   hovered: string | null
+  /** Destination dont la fiche est ouverte. */
+  selected?: string | null
+  returnsLoading?: string | null
+  returns?: Record<string, ReturnDatesResult>
+}>()
+
+const emit = defineEmits<{
+  select: [string | null]
+  'show-returns': [string]
 }>()
 
 const instance = getCurrentInstance()
 let map: maplibregl.Map | null = null
 const markers = new Map<string, maplibregl.Marker>()
+
+const selectedDest = computed(
+  () => props.result?.destinations.find((d) => d.label === props.selected) ?? null,
+)
+
+/** Position à l'écran de la fiche, recalculée à chaque déplacement de la carte. */
+const popoverPos = ref<{ x: number; y: number; below: boolean } | null>(null)
+const popoverEl = ref<HTMLElement | null>(null)
+
+/** Écart entre le marqueur et la fiche, en pixels. */
+const GAP = 18
+
+function syncPopover() {
+  const dest = selectedDest.value
+  if (!map || !dest?.coords) {
+    popoverPos.value = null
+    return
+  }
+  const point = map.project([dest.coords[1], dest.coords[0]])
+  const container = map.getContainer()
+  // La fiche fait 19rem : on la garde dans le cadre plutôt que de la laisser déborder.
+  const half = 160
+  const x = Math.min(Math.max(point.x, half), Math.max(half, container.clientWidth - half))
+
+  // Au-dessus par défaut, en dessous s'il n'y a pas la place. La hauteur varie du simple
+  // au double selon le contenu (dates de retour dépliées), donc on la mesure.
+  const height = popoverEl.value?.offsetHeight ?? 260
+  const below = point.y - height - GAP < 8
+
+  popoverPos.value = { x, y: point.y, below }
+}
+
+// Deux passes : la première rend la fiche, la seconde la replace une fois sa hauteur connue.
+// `returns` en fait partie : déplier les dates de retour double la hauteur de la fiche.
+watch(
+  () => [props.selected, props.result, props.returns] as const,
+  () => nextTick(() => {
+    syncPopover()
+    nextTick(syncPopover)
+  }),
+  { deep: true },
+)
 
 onMounted(async () => {
   await nextTick()
@@ -29,6 +80,10 @@ onMounted(async () => {
     })
     // Render initial state once map tiles are ready
     map.once('load', () => draw())
+    // La fiche est positionnée en pixels : elle doit suivre la carte.
+    map.on('move', syncPopover)
+    // Un clic sur le fond, hors marqueur, referme la fiche.
+    map.on('click', () => emit('select', null))
   } catch (e) {
     console.error('[MapView] maplibre init failed:', e)
   }
@@ -133,13 +188,28 @@ function render(result: SearchResult | null | undefined) {
 
   for (const d of result.destinations) {
     if (!d.coords) continue
+    // MapLibre positionne le marqueur en écrivant `transform` sur CET élément : toute
+    // animation doit viser la pastille enfant, sinon le marqueur saute à l'origine
+    // de la carte jusqu'au prochain déplacement.
     const el = document.createElement('div')
     el.className = 'tq-dest-marker'
     el.dataset.label = d.label
-    el.style.cssText = 'width:10px;height:10px;background:#14b8b0;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer;transition:transform .15s'
+    el.style.cssText = 'width:10px;height:10px;cursor:pointer'
+    el.setAttribute('role', 'button')
+    el.setAttribute('aria-label', d.label)
+
+    const pin = document.createElement('div')
+    pin.className = 'tq-dot'
+    pin.style.cssText = 'width:100%;height:100%;background:#14b8b0;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);box-sizing:border-box;transition:transform .15s'
+    el.appendChild(pin)
+
+    el.addEventListener('click', (event) => {
+      // Sans cela, le clic remonte à la carte, qui referme aussitôt la fiche.
+      event.stopPropagation()
+      emit('select', props.selected === d.label ? null : d.label)
+    })
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([d.coords[1], d.coords[0]])
-      .setPopup(new maplibregl.Popup({ offset: 12 }).setText(d.label))
       .addTo(map)
     markers.set(d.label, marker)
     if (o) lineCoords.push([[o[1], o[0]], [d.coords[1], d.coords[0]]])
@@ -155,6 +225,8 @@ function render(result: SearchResult | null | undefined) {
     })
     map.addLayer({ id: 'lines', type: 'line', source: 'lines', paint: { 'line-color': '#14b8b0', 'line-width': 1.5, 'line-opacity': 0.5 } })
   }
+
+  applyMarkerStyles()
 
   // Fit bounds around all visible points
   const pts = [o, ...result.destinations.map((d) => d.coords)].filter(Boolean) as [number, number][]
@@ -173,24 +245,58 @@ watch([() => props.result, () => props.route, () => props.selectedRoute], () => 
   else map.once('load', () => draw())
 })
 
-watch(() => props.hovered, (label) => {
+/**
+ * Un marqueur peut être survolé, sélectionné, ou les deux : un seul endroit décide de
+ * son apparence, pour que les deux états ne se marchent pas dessus.
+ */
+function applyMarkerStyles() {
   markers.forEach((m, key) => {
-    if (key === '__origin__') return
+    if (key.startsWith('__')) return // origine et marqueurs d'itinéraire
     const el = m.getElement()
-    if (key === label) {
-      el.style.transform = 'scale(1.6)'
-      el.style.zIndex = '10'
-    } else {
-      el.style.transform = ''
-      el.style.zIndex = ''
-    }
+    // La pastille, pas l'élément marqueur : celui-ci appartient à MapLibre.
+    const pin = el.firstElementChild as HTMLElement | null
+    if (!pin) return
+    const isSelected = key === props.selected
+    const isHovered = key === props.hovered
+    pin.style.background = isSelected ? '#ff6b5e' : '#14b8b0'
+    pin.style.transform = isSelected ? 'scale(1.9)' : isHovered ? 'scale(1.6)' : ''
+    el.style.zIndex = isSelected ? '11' : isHovered ? '10' : ''
   })
-})
+}
+
+watch(() => [props.hovered, props.selected], applyMarkerStyles)
 </script>
 
 <template>
   <div class="h-full w-full">
     <!-- inline style: position:absolute a priorité 1000 et ne peut pas être écrasé par maplibregl-map {position:relative} -->
     <div class="map-inner" style="position:absolute;inset:0;" />
+
+    <!-- Fiche de la destination sélectionnée, ancrée sur son marqueur.
+         Le calque laisse passer les clics ; seule la fiche les capte. -->
+    <div v-if="selectedDest && popoverPos" class="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      <div
+        ref="popoverEl"
+        class="pointer-events-auto absolute"
+        :style="{
+          left: `${popoverPos.x}px`,
+          top: `${popoverPos.y}px`,
+          transform: popoverPos.below
+            ? `translate(-50%, ${GAP}px)`
+            : `translate(-50%, calc(-100% - ${GAP}px))`,
+        }"
+      >
+        <DestinationPopover
+          :destination="selectedDest"
+          :mode="result!.mode"
+          :origin-label="result!.origin.label"
+          :origin-slug="result!.origin.slug"
+          :returns-loading="returnsLoading === selectedDest.label"
+          :returns="returns?.[selectedDest.label] ?? null"
+          @close="emit('select', null)"
+          @show-returns="emit('show-returns', $event)"
+        />
+      </div>
+    </div>
   </div>
 </template>
