@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Un push qui en suit un autre sur la même référence annule l'exécution précédente.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Lit la version de pnpm dans le champ `packageManager` de package.json,
+      # et met en cache le store pour les exécutions suivantes.
+      - uses: pnpm/action-setup@v6
+        with:
+          cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          # Même majeure que l'image d'exécution en production. La machine de dev
+          # peut être en avance, pas la CI.
+          node-version: 24
+
+      # Le `postinstall` du projet lance `nuxt prepare`, qui génère `.nuxt/` :
+      # le lint (config @nuxt/eslint générée) et le typecheck en dépendent.
+      - name: Install
+        id: install
+        run: pnpm install --frozen-lockfile
+
+      # Les quatre vérifications tournent même si l'une échoue : un seul aller-retour
+      # suffit à voir tout ce qui ne va pas. Elles sont en revanche sautées si
+      # l'installation a échoué, où elles n'échoueraient que par ricochet.
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm lint
+
+      - name: Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm typecheck
+
+      - name: Tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm test
+
+      # Compile check : le build prérend `/` et les ~300 pages `/depuis/*`, donc il
+      # attrape les erreurs de rendu serveur qu'aucun test unitaire ne voit.
+      # Aucune image ni registry en jeu — `.output/` est jeté avec le runner.
+      - name: Build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm build

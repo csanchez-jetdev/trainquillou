@@ -2,6 +2,7 @@
   "name": "trainquillou",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@11.18.0",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -9,7 +10,10 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -20,9 +24,13 @@
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
+    "@nuxt/eslint": "^1.16.0",
     "@nuxt/test-utils": "^4.0.3",
     "@vue/test-utils": "^2.4.11",
+    "eslint": "^10.8.0",
     "happy-dom": "^20.10.2",
-    "vitest": "^4.1.8"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.8",
+    "vue-tsc": "^3.3.9"
   }
 }

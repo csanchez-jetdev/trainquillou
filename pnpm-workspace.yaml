@@ -1,3 +1,6 @@
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
+  # Résolveur natif utilisé par le plugin import d'ESLint : sans son script de
+  # build, le lint échoue à charger le binding napi.
+  unrs-resolver: true
