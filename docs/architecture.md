@@ -54,6 +54,51 @@ enregistrements arrivent au hub, donc leur champ `origine` désigne justement la
 candidate. Il ne reste qu'à intersecter les deux ensembles. Deux appels amont, comme une
 recherche simple.
 
+## La grammaire de recherche
+
+Les cinq modes ne sont pas cinq choix offerts à l'utilisateur : ce sont **trois champs** dont
+le mode découle. Une gare de départ, une gare d'arrivée (vide = n'importe où), et une façon
+d'interpréter les dates.
+
+| Depuis | Vers | Dates | `mode` |
+|---|---|---|---|
+| Paris | *vide* | une date | `from` |
+| *vide* | Biarritz | une date | `to` |
+| Paris | *vide* | aller + retour | `roundtrip` |
+| Paris | *vide* | plage | `range` |
+| Nantes | Grenoble | une date | `route` |
+
+Cinq onglets présentaient comme des pairs des choses qui n'en sont pas : `from`/`to` est un
+sens, `roundtrip`/`range` une façon de choisir les dates, et `route` une autre application
+(deux gares en entrée, des correspondances en sortie, un panneau distinct). Les aplatir sur
+une ligne obligeait à traduire une intention en vocabulaire d'application.
+
+Deux conséquences dans le code (`app/components/SearchBar.vue`) :
+
+- Le mode est **calculé**, jamais saisi. Une combinaison impossible ne peut donc pas être
+  exprimée : le choix aller-retour/plage se désactive dès qu'une gare d'arrivée est saisie.
+- L'URL, elle, porte toujours `mode` — elle reste la source de vérité et les liens partagés
+  ne changent pas. À l'ouverture, `SearchBar` rétablit l'état de champs qui *produit* ce mode.
+  Un formulaire vide ne pouvant pas exprimer « je cherche à l'envers », l'intention reçue de
+  l'URL (`/app?mode=to`) survit jusqu'à la première saisie.
+
+Le mode n'étant plus nommé nulle part, une ligne sous le formulaire dit ce que la recherche
+va faire. C'était le reproche fait aux onglets : ils nommaient un mode sans l'expliquer.
+
+## Liste et carte : une seule réponse
+
+Le rail de résultats porte des filtres (durée du trajet le plus court, période de départ,
+nombre de jours joignables). Ils ne peuvent pas ne s'appliquer qu'à la liste : « 20 affichées »
+au-dessus de 74 points sur la carte, ce sont deux réponses différentes à la même question.
+`ResultsRail` émet donc les libellés retenus, `MapView` s'y restreint et recadre dessus —
+filtrer sur « ≤ 2h » dessine littéralement le cercle des deux heures autour de la gare.
+
+La fiche de résultat ne sert qu'à **choisir** : nom, notoriété, durée du plus court trajet,
+amplitude des départs. Tout le détail (horaires, réservation, dates de retour) vit dans la
+fiche ancrée sur la carte, ouverte au clic. Une recherche à quatre semaines renvoie couramment
+70 destinations et une exploration sur une semaine 130 : tout déplier faisait plusieurs mètres
+de défilement, dont deux liens de réservation par ligne.
+
 ## Pages d'entrée par gare
 
 `/depuis/[slug]` est une page statique par gare de départ, pré-rendue au build (304 pages).

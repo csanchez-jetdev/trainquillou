@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ReturnDatesResult } from '~~/shared/types'
+import { prettyLabel } from '~~/shared/stations'
 
 const { origin, date, dateTo, mode, result, pending, error, search, refresh } = useSearch()
 const itinerary = useItinerary()
@@ -8,9 +9,19 @@ const hovered = ref<string | null>(null)
 const selectedRoute = ref(0)
 /** Destination dont la fiche est ouverte sur la carte. */
 const selectedDestination = ref<string | null>(null)
+/** Labels retenus par les filtres du rail ; `null` quand aucun filtre n'est actif. */
+const visibleLabels = ref<string[] | null>(null)
 
 // Une nouvelle recherche invalide la sélection : la gare peut ne plus être dans les résultats.
 watch(result, () => { selectedDestination.value = null })
+
+// Filtrer jusqu'à masquer la destination ouverte laisserait sa fiche ancrée sur un marqueur
+// qui n'existe plus.
+watch(visibleLabels, (labels) => {
+  if (labels && selectedDestination.value && !labels.includes(selectedDestination.value)) {
+    selectedDestination.value = null
+  }
+})
 
 const isRoute = computed(() => mode.value === 'route')
 
@@ -27,6 +38,41 @@ const returnsByDest = computed(() => {
   const map: Record<string, ReturnDatesResult> = {}
   for (const r of Object.values(returnsCache)) map[r.origin] = r
   return map
+})
+
+/**
+ * Sur un écran étroit, le formulaire et la carte se partagent déjà toute la hauteur : laissé
+ * déplié, il ne reste plus un pixel pour les résultats. Il se replie donc en un résumé dès
+ * qu'une recherche a abouti. Sur desktop la colonne est assez haute, il reste ouvert.
+ */
+const isNarrow = ref(false)
+const formOpen = ref(true)
+onMounted(() => {
+  const mq = window.matchMedia('(max-width: 767px)')
+  isNarrow.value = mq.matches
+  mq.addEventListener('change', (e) => (isNarrow.value = e.matches))
+})
+watch([result, () => itinerary.route.value], () => {
+  if (isNarrow.value) formOpen.value = false
+})
+function onSearch(params: Parameters<typeof search>[0]) {
+  search(params)
+  if (isNarrow.value) formOpen.value = false
+}
+
+/** Résumé de la recherche en cours, affiché à la place du formulaire replié. */
+const summary = computed(() => {
+  const station = isRoute.value ? itinerary.from.value : origin.value
+  if (!station) return null
+  const parts = [prettyLabel(station)]
+  if (isRoute.value && itinerary.to.value) parts.push(prettyLabel(itinerary.to.value))
+  const where = parts.join(' → ')
+  if (!date.value) return where
+  const [y, m, d] = date.value.split('-')
+  const when = new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('fr-FR', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  })
+  return `${where} · ${when}`
 })
 
 async function onShowReturns(destLabel: string) {
@@ -56,9 +102,6 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
         <img src="/logo-mark.png" alt="Trainquillou" class="h-8 w-8 object-contain">
         Trainquillou
       </NuxtLink>
-      <NuxtLink to="/" class="text-sm font-medium text-rail-soft transition hover:text-rail">
-        ← Accueil
-      </NuxtLink>
     </header>
 
     <!-- Corps : sidebar + carte (empilés sur mobile, côte à côte sur desktop) -->
@@ -72,6 +115,7 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
           :selected-route="selectedRoute"
           :hovered="hovered"
           :selected="selectedDestination"
+          :visible-labels="visibleLabels"
           :returns-loading="returnsLoading"
           :returns="returnsByDest"
           @select="selectedDestination = $event"
@@ -82,7 +126,20 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
       <!-- Panneau latéral : recherche + résultats -->
       <aside class="order-2 flex min-h-0 flex-1 flex-col bg-white md:order-1 md:w-[24rem] md:flex-none md:border-r md:border-slate-200">
         <div class="shrink-0 border-b border-slate-100 p-3">
+          <!-- Formulaire replié : résumé cliquable, écran étroit uniquement -->
+          <button
+            v-if="isNarrow && !formOpen && summary"
+            type="button"
+            data-test="expand-search"
+            class="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:border-accent"
+            @click="formOpen = true"
+          >
+            <span class="min-w-0 flex-1 truncate text-sm font-semibold text-rail">{{ summary }}</span>
+            <span class="shrink-0 text-xs font-medium text-accent-strong">Modifier</span>
+          </button>
+
           <SearchBar
+            v-show="formOpen || !isNarrow"
             :initial-origin="origin"
             :initial-destination="itinerary.to.value"
             :initial-date="date"
@@ -90,7 +147,7 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
             :initial-stops="itinerary.stops.value"
             :initial-mode="mode"
             :loading="searchLoading"
-            @search="search"
+            @search="onSearch"
           />
         </div>
 
@@ -114,9 +171,9 @@ useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
             :result="result"
             :pending="pending"
             :error="error"
-            :returns="returnsByDest"
-            :returns-loading="returnsLoading"
-            @show-returns="onShowReturns"
+            :selected="selectedDestination"
+            @select="selectedDestination = selectedDestination === $event ? null : $event"
+            @update:visible="visibleLabels = $event"
             @hover="hovered = $event"
             @retry="refresh"
           />

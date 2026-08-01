@@ -10,6 +10,8 @@ const props = defineProps<{
   hovered: string | null
   /** Destination dont la fiche est ouverte. */
   selected?: string | null
+  /** Restriction aux destinations retenues par les filtres du rail ; `null` = toutes. */
+  visibleLabels?: string[] | null
   returnsLoading?: string | null
   returns?: Record<string, ReturnDatesResult>
 }>()
@@ -46,6 +48,13 @@ const TINTS: Array<{ id: string; prop: string; color: string }> = [
 
 const instance = getCurrentInstance()
 let map: maplibregl.Map | null = null
+/**
+ * Le style est chargé et les couches peuvent être ajoutées. On ne peut pas se fier à
+ * `map.loaded()` : il renvoie `false` pendant une animation de caméra, et un
+ * `map.once('load')` posé à ce moment-là attend un événement déjà passé — le rendu
+ * était alors abandonné sans bruit.
+ */
+let styleReady = false
 const markers = new Map<string, maplibregl.Marker>()
 
 /** Francise les libellés et applique la teinte de la charte au style chargé. */
@@ -106,6 +115,26 @@ function syncPopover() {
   popoverPos.value = { x, y: point.y, below }
 }
 
+/**
+ * Recentre sur la destination choisie si elle est hors cadre. Sélectionner depuis la liste
+ * ouvrirait sinon une fiche invisible ; cliquer un marqueur déjà à l'écran ne bouge rien.
+ */
+function revealSelected() {
+  const dest = selectedDest.value
+  if (!map || !dest?.coords) return
+  const container = map.getContainer()
+  const point = map.project([dest.coords[1], dest.coords[0]])
+  const margin = 60
+  const outside =
+    point.x < margin
+    || point.y < margin
+    || point.x > container.clientWidth - margin
+    || point.y > container.clientHeight - margin
+  if (outside) map.easeTo({ center: [dest.coords[1], dest.coords[0]], duration: 500 })
+}
+
+watch(() => props.selected, () => nextTick(revealSelected))
+
 // Deux passes : la première rend la fiche, la seconde la replace une fois sa hauteur connue.
 // `returns` en fait partie : déplier les dates de retour double la hauteur de la fiche.
 watch(
@@ -134,6 +163,7 @@ onMounted(async () => {
     })
     // Render initial state once map tiles are ready
     map.once('load', () => {
+      styleReady = true
       styleBaseMap()
       draw()
     })
@@ -245,7 +275,10 @@ function render(result: SearchResult | null | undefined) {
 
   const lineCoords: [number, number][][] = []
 
-  for (const d of result.destinations) {
+  const keep = props.visibleLabels ? new Set(props.visibleLabels) : null
+  const shown = keep ? result.destinations.filter((d) => keep.has(d.label)) : result.destinations
+
+  for (const d of shown) {
     if (!d.coords) continue
     // MapLibre positionne le marqueur en écrivant `transform` sur CET élément : toute
     // animation doit viser la pastille enfant, sinon le marqueur saute à l'origine
@@ -291,7 +324,7 @@ function render(result: SearchResult | null | undefined) {
   applyMarkerStyles()
 
   // Fit bounds around all visible points
-  const pts = [o, ...result.destinations.map((d) => d.coords)].filter(Boolean) as [number, number][]
+  const pts = [o, ...shown.map((d) => d.coords)].filter(Boolean) as [number, number][]
   if (pts.length > 1) {
     const b = new maplibregl.LngLatBounds()
     pts.forEach((p) => b.extend([p[1], p[0]]))
@@ -301,10 +334,8 @@ function render(result: SearchResult | null | undefined) {
 
 // Redessine quand la source change (résultat de recherche, itinéraire, ou itinéraire sélectionné).
 // Le rendu initial est déclaré dans onMounted.
-watch([() => props.result, () => props.route, () => props.selectedRoute], () => {
-  if (!map) return
-  if (map.loaded()) draw()
-  else map.once('load', () => draw())
+watch([() => props.result, () => props.route, () => props.selectedRoute, () => props.visibleLabels], () => {
+  if (styleReady) draw()
 })
 
 /**

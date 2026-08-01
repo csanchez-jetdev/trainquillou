@@ -1,163 +1,95 @@
 <script setup lang="ts">
-import type { Destination, ReturnDatesResult, SearchMode } from '~~/shared/types'
+import type { Destination, SearchMode } from '~~/shared/types'
+import { prettyLabel } from '~~/shared/stations'
 
+/**
+ * Une ligne de résultat. Elle sert à *choisir* une ville, pas à l'étudier : nom, notoriété,
+ * durée du trajet le plus court, amplitude des départs. Le détail (horaires, réservation,
+ * dates de retour) vit dans la fiche de la carte, ouverte au clic.
+ *
+ * Une recherche à quatre semaines renvoie couramment 70 destinations, une exploration sur
+ * une semaine en renvoie 130 : tout déplier ferait plusieurs mètres de défilement.
+ */
 const props = defineProps<{
   destination: Destination
   mode: SearchMode
-  /** Slug de réservation du hub, pour construire les liens vers les revendeurs. */
-  originSlug?: string
-  returns?: ReturnDatesResult | null
-  returnsLoading?: boolean
+  selected?: boolean
 }>()
-const emit = defineEmits<{ 'show-returns': [string]; hover: [string | null] }>()
+const emit = defineEmits<{ select: [string]; hover: [string | null] }>()
 
 const pop = computed(() => popularityTier(props.destination.popularity))
+const name = computed(() => prettyLabel(props.destination.label))
 
-/** En recherche inverse, le voyage part de la gare listée et rejoint le hub. */
-const legSlugs = computed(() => {
-  const hub = props.originSlug
-  const other = props.destination.slug
-  if (!hub || !other) return null
-  return props.mode === 'to' ? { from: other, to: hub } : { from: hub, to: other }
-})
+const trains = computed(() => props.destination.trains ?? [])
+const fastest = computed(() => fastestTrip(trains.value))
+const window = computed(() => departureWindow(trains.value))
+const days = computed(() => props.destination.availableDates ?? [])
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-')
   return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('fr-FR', {
-    weekday: 'short', day: 'numeric', month: 'short',
+    weekday: 'short', day: 'numeric',
   })
 }
 </script>
 
 <template>
-  <li
-    class="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-accent hover:shadow-md"
-    @mouseenter="emit('hover', destination.label)"
-    @mouseleave="emit('hover', null)"
-  >
-    <div class="flex items-center justify-between gap-2">
-      <span class="flex min-w-0 items-center gap-1.5">
-        <span class="truncate font-semibold text-rail">{{ destination.label }}</span>
+  <li>
+    <button
+      type="button"
+      data-test="dest-card"
+      :aria-pressed="selected"
+      :class="[
+        'w-full rounded-lg border px-3 py-2 text-left transition',
+        selected
+          ? 'border-accent bg-accent/5 ring-1 ring-accent/40'
+          : 'border-slate-200 bg-white hover:border-accent/60 hover:bg-slate-50',
+      ]"
+      @click="emit('select', destination.label)"
+      @mouseenter="emit('hover', destination.label)"
+      @mouseleave="emit('hover', null)"
+      @focus="emit('hover', destination.label)"
+      @blur="emit('hover', null)"
+    >
+      <div class="flex items-baseline gap-2">
+        <span class="min-w-0 flex-1 truncate font-semibold text-rail">{{ name }}</span>
+        <span v-if="pop.tier > 0" :title="pop.label" class="shrink-0 text-[11px] text-amber-500">
+          {{ pop.stars }}
+        </span>
+        <!-- Le chiffre sur lequel on tranche vraiment : Lyon et Perpignan se ressemblent
+             dans une liste, 1h56 et 5h07 ne se ressemblent pas. -->
         <span
-          v-if="pop.tier > 0"
-          :title="`${pop.label} (notoriété)`"
-          class="shrink-0 text-xs text-amber-500"
-        >{{ pop.stars }}</span>
-      </span>
-      <!-- Retours pertinents uniquement en recherche aller classique -->
-      <button
-        v-if="mode === 'from'"
-        data-test="returns-btn"
-        type="button"
-        class="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-accent-strong hover:bg-accent/10"
-        @click="emit('show-returns', destination.label)"
-      >
-        Retours →
-      </button>
-      <span
-        v-else-if="mode === 'range' && destination.availableDates"
-        class="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-strong"
-      >
-        {{ destination.availableDates.length }} jour(s)
-      </span>
-      <span
-        v-else-if="mode === 'roundtrip'"
-        class="shrink-0 rounded-full bg-coral/15 px-2 py-0.5 text-xs font-medium text-coral-strong"
-      >
-        aller-retour
-      </span>
-    </div>
-
-    <!-- Mode range : jours de disponibilité -->
-    <div v-if="mode === 'range' && destination.availableDates" class="mt-2 flex flex-wrap gap-1.5">
-      <span
-        v-for="d in destination.availableDates"
-        :key="d"
-        class="rounded-md bg-slate-100 px-2 py-0.5 text-sm text-rail-soft"
-      >
-        {{ formatDate(d) }}
-      </span>
-    </div>
-
-    <!-- Mode aller-retour : les deux sens, séparés -->
-    <div v-else-if="mode === 'roundtrip'" class="mt-2 flex flex-col gap-1.5">
-      <div class="flex items-start gap-2">
-        <span class="mt-0.5 w-12 shrink-0 text-xs font-semibold uppercase text-rail-soft">Aller</span>
-        <div class="flex flex-wrap gap-1.5">
-          <span
-            v-for="t in destination.trains"
-            :key="`out-${t.departure}-${t.trainNumber}`"
-            data-test="dep-chip"
-            :title="`Arrivée ${t.arrival}${t.trainNumber ? ` · Train ${t.trainNumber}` : ''}`"
-            class="rounded-md bg-slate-100 px-2 py-0.5 text-sm tabular-nums text-rail-soft"
-          >
-            {{ t.departure }}
-          </span>
-        </div>
-      </div>
-      <div class="flex items-start gap-2">
-        <span class="mt-0.5 w-12 shrink-0 text-xs font-semibold uppercase text-coral-strong">Retour</span>
-        <div class="flex flex-wrap gap-1.5">
-          <span
-            v-for="t in destination.returnTrains"
-            :key="`back-${t.departure}-${t.trainNumber}`"
-            data-test="return-chip"
-            :title="`Arrivée ${t.arrival}${t.trainNumber ? ` · Train ${t.trainNumber}` : ''}`"
-            class="rounded-md bg-coral/10 px-2 py-0.5 text-sm tabular-nums text-coral-strong"
-          >
-            {{ t.departure }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modes from / to : créneaux de train -->
-    <div v-else class="mt-2 flex flex-wrap gap-1.5">
-      <span
-        v-for="t in destination.trains"
-        :key="t.departure + t.trainNumber"
-        data-test="dep-chip"
-        :title="`${mode === 'to' ? 'Départ' : 'Arrivée'} ${t.arrival}${t.trainNumber ? ` · Train ${t.trainNumber}` : ''}`"
-        class="rounded-md bg-slate-100 px-2 py-0.5 text-sm tabular-nums text-rail-soft"
-      >
-        {{ t.departure }}
-      </span>
-    </div>
-
-    <!-- Réservation : Trainquillou montre où aller, la réservation se fait chez le revendeur -->
-    <div v-if="legSlugs" class="mt-2 flex items-center gap-3 text-xs">
-      <a
-        :href="sncfConnectUrl(legSlugs.from, legSlugs.to)"
-        target="_blank"
-        rel="noopener"
-        data-test="book-sncf"
-        class="font-semibold text-accent-strong underline decoration-accent/40 hover:decoration-accent"
-      >
-        Réserver sur SNCF Connect
-      </a>
-      <a
-        :href="trainlineUrl(legSlugs.from, legSlugs.to)"
-        target="_blank"
-        rel="noopener"
-        data-test="book-trainline"
-        class="text-rail-soft underline decoration-slate-300 hover:text-rail"
-      >
-        Trainline
-      </a>
-    </div>
-
-    <p v-if="returnsLoading" class="mt-2 text-sm text-rail-soft">Chargement des retours…</p>
-    <div v-else-if="returns" class="mt-2 border-t border-slate-100 pt-2">
-      <p v-if="!returns.dates.length" class="text-sm text-rail-soft">Aucun retour TGVmax disponible.</p>
-      <div v-else class="flex flex-wrap gap-1.5">
-        <span
-          v-for="d in returns.dates"
-          :key="d"
-          class="rounded-md bg-accent/10 px-2 py-0.5 text-sm text-accent-strong"
+          v-if="fastest"
+          data-test="card-duration"
+          class="shrink-0 text-sm font-semibold tabular-nums text-accent-strong"
         >
-          {{ formatDate(d) }}
+          {{ formatDuration(tripDurationMin(fastest)) }}
+        </span>
+        <span
+          v-else-if="mode === 'range'"
+          class="shrink-0 rounded-full bg-accent/10 px-1.5 text-[11px] font-semibold text-accent-strong"
+        >
+          {{ days.length }} j
         </span>
       </div>
-    </div>
+
+      <p class="mt-0.5 truncate text-xs text-rail-soft">
+        <template v-if="mode === 'range'">
+          {{ days.slice(0, 4).map(formatDate).join(' · ') }}<template v-if="days.length > 4"> +{{ days.length - 4 }}</template>
+        </template>
+        <template v-else-if="mode === 'roundtrip'">
+          {{ trains.length }} aller<template v-if="trains.length > 1">s</template>
+          <span class="text-slate-300"> · </span>
+          <span class="text-coral-strong">{{ destination.returnTrains?.length ?? 0 }} retour<template v-if="(destination.returnTrains?.length ?? 0) > 1">s</template></span>
+        </template>
+        <template v-else>
+          {{ trains.length }} train<template v-if="trains.length > 1">s</template>
+          <template v-if="window">
+            <span class="text-slate-300"> · </span>
+            <span class="tabular-nums">{{ window.first }}<template v-if="window.last !== window.first"> → {{ window.last }}</template></span>
+          </template>
+        </template>
+      </p>
+    </button>
   </li>
 </template>

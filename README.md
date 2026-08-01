@@ -11,7 +11,7 @@ Gratuit, sans publicité, sans compte, sans traceur. Open source sous AGPL-3.0.
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-14b8b0)](LICENSE)
 [![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white)](https://nuxt.com)
 [![Données open data SNCF](https://img.shields.io/badge/données-open%20data%20SNCF-0b1f3a)](https://data.sncf.com/explore/dataset/tgvmax/)
-[![Tests](https://img.shields.io/badge/tests-45%20passants-14b8b0)](test/)
+[![Tests](https://img.shields.io/badge/tests-73%20passants-14b8b0)](test/)
 
 </div>
 
@@ -28,20 +28,24 @@ toutes les destinations où il reste des places TGVmax.
 
 ## Ce que ça fait
 
-| Mode | Question à laquelle il répond |
+Une gare de départ, une gare d'arrivée (laissez-la vide pour dire *n'importe où*) et une date.
+Les cinq façons de chercher découlent de ces trois champs, il n'y a pas de mode à choisir :
+
+| Vous remplissez | Question à laquelle ça répond |
 |---|---|
-| **Depuis une gare** | Où puis-je aller depuis Lyon samedi ? |
-| **Vers une gare** | D'où peut-on rejoindre Biarritz ce jour-là ? |
-| **Aller-retour** | Je pars vendredi soir et je rentre dimanche : quelles destinations ont les deux trajets réservables ? |
-| **Sur plusieurs jours** | Sur la semaine du 10, quelles destinations sont joignables, et combien de jours chacune ? |
-| **Itinéraire A → B** | Pas de TGVmax direct Nantes-Grenoble : quelles correspondances le rendent possible ? |
+| **Depuis** seul | Où puis-je aller depuis Lyon samedi ? |
+| **Vers** seul | D'où peut-on rejoindre Biarritz ce jour-là ? |
+| **Depuis** + aller-retour | Je pars vendredi soir et je rentre dimanche : quelles destinations ont les deux trajets réservables ? |
+| **Depuis** + plusieurs jours | Sur la semaine du 10, quelles destinations sont joignables, et combien de jours chacune ? |
+| **Depuis** + **Vers** | Pas de TGVmax direct Nantes-Grenoble : quelles correspondances le rendent possible ? |
 
 Et aussi :
 
-- **Carte interactive** MapLibre GL : les destinations sont reliées à votre gare, survol synchronisé
-  avec la liste des résultats.
-- **Score de notoriété touristique** pour trier les destinations par intérêt plutôt que par ordre
-  alphabétique.
+- **Carte interactive** MapLibre GL : les destinations sont reliées à votre gare, et un clic sur
+  une ville ouvre ses horaires, sa durée de trajet et ses liens de réservation.
+- **Filtres** par durée de trajet et par période de départ, appliqués à la liste **et** à la carte —
+  cocher « ≤ 2h » dessine le cercle des deux heures autour de votre gare.
+- **Tri** par durée, par ordre alphabétique ou par notoriété touristique.
 - **Dates de retour disponibles** pour chaque destination, en un clic.
 - **Liens de réservation** vers SNCF Connect et Trainline.
 - **Recherches partageables** : l'URL contient toute la recherche, un lien collé rejoue le même écran.
@@ -62,7 +66,7 @@ Aucune clé d'API, aucun compte, aucun fichier `.env` : l'open data SNCF est ouv
 référentiel des gares est embarqué dans le dépôt.
 
 ```bash
-pnpm test         # 45 tests, sans accès réseau
+pnpm test         # 73 tests, sans accès réseau
 pnpm build        # build de production
 pnpm preview      # prévisualiser le build
 ```
