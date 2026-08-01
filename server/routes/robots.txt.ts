@@ -1,9 +1,9 @@
 /**
- * robots.txt servi par Nitro plutôt que posé dans `public/`, pour que la
- * directive `Sitemap` suive `siteUrl` comme le fait sitemap.xml.
+ * Served by Nitro rather than dropped in `public/`, so the `Sitemap` directive follows
+ * `siteUrl` the way sitemap.xml does.
  *
- * Le protocole sitemaps impose une URL absolue ici : un chemin relatif
- * (`Sitemap: /sitemap.xml`) est hors spécification et peut être ignoré.
+ * The sitemaps protocol requires an absolute URL here: a relative path
+ * (`Sitemap: /sitemap.xml`) is out of spec and may be ignored.
  */
 export default defineEventHandler((event) => {
   const { public: { siteUrl } } = useRuntimeConfig(event)

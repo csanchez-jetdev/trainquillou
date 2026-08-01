@@ -1,10 +1,8 @@
 <script setup lang="ts">
-/**
- * Lien vers le dépôt. L'adresse est écrite ici et nulle part ailleurs : le projet étant
- * sous AGPL-3.0, elle doit rester accessible depuis chaque écran.
- */
+/** The repo URL is written here and nowhere else: under AGPL-3.0 it has to stay reachable
+ *  from every screen. */
 defineProps<{
-  /** Texte à côté de la marque. Absent : lien en icône seule (barre d'application). */
+  /** Text next to the mark. Absent: icon-only link (app bar). */
   label?: string
 }>()
 

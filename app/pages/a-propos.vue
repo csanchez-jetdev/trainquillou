@@ -1,14 +1,6 @@
 <script setup lang="ts">
-/**
- * Page « À propos ». Elle existe pour une raison précise : sans identité affichée,
- * sans méthode explicite et sans moyen de contact, un site qui affiche des
- * disponibilités de train ressemble à un agrégateur opaque. Ce sont exactement les
- * trois signaux que les audits de confiance cherchent, et les trois qu'un visiteur
- * cherche avant de suivre un lien de réservation.
- *
- * Prérendue (voir `nitro.prerender.routes`) : elle ne dépend d'aucune donnée
- * temps réel.
- */
+/** Identity, method and contact: the three signals a visitor looks for before following
+ *  a booking link. Prerendered (see `nitro.prerender.routes`). */
 const { public: { siteUrl } } = useRuntimeConfig()
 const base = siteUrl.replace(/\/$/, '')
 
@@ -65,7 +57,7 @@ useHead({
     <header class="border-b border-slate-200 bg-white">
       <div class="mx-auto flex max-w-4xl items-center justify-between px-5 py-4 sm:px-8">
         <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-          <!-- Décoratif : le mot « Trainquillou » suit dans le même lien. -->
+          <!-- Decorative: the name follows in the same link. -->
           <img
             src="/logo-mark.png"
             alt=""
@@ -111,7 +103,6 @@ useHead({
         compte.
       </p>
 
-      <!-- MÉTHODE -->
       <section class="mt-12">
         <h2 class="text-2xl font-bold">D'où viennent les disponibilités</h2>
         <p class="mt-3 leading-relaxed text-rail-soft">
@@ -164,7 +155,6 @@ useHead({
         </dl>
       </section>
 
-      <!-- HÉBERGEMENT -->
       <section class="mt-12">
         <h2 class="text-2xl font-bold">Où le site est hébergé</h2>
         <p class="mt-3 leading-relaxed text-rail-soft">
@@ -185,7 +175,6 @@ useHead({
         </p>
       </section>
 
-      <!-- VIE PRIVÉE -->
       <section class="mt-12">
         <h2 class="text-2xl font-bold">Ce que le site mesure</h2>
         <p class="mt-3 leading-relaxed text-rail-soft">
@@ -208,7 +197,6 @@ useHead({
         </p>
       </section>
 
-      <!-- CONTACT -->
       <section class="mt-12">
         <h2 class="text-2xl font-bold">Nous écrire, contribuer</h2>
         <p class="mt-3 leading-relaxed text-rail-soft">

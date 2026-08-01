@@ -38,7 +38,7 @@ async function fetchRecords(params: Record<string, string | string[]>): Promise<
   return all
 }
 
-/** Groupe les trains réservables par la gare opposée (`destination` ou `origine`). */
+/** Groups bookable trains by the opposite station (`destination` or `origine`). */
 function groupBy(records: RawRecord[], key: 'destination' | 'origine'): Destination[] {
   const byLabel = new Map<string, Train[]>()
   for (const r of records) {
@@ -56,19 +56,19 @@ function groupBy(records: RawRecord[], key: 'destination' | 'origine'): Destinat
     .sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/** Destinations réservables depuis une origine (groupées par gare d'arrivée). */
+/** Bookable destinations from an origin (grouped by arrival station). */
 export function groupReservableTrains(records: RawRecord[]): Destination[] {
   return groupBy(records, 'destination')
 }
 
-/** Origines possibles vers une gare d'arrivée (recherche inverse, groupées par gare de départ). */
+/** Possible origins for an arrival station (reverse search, grouped by departure station). */
 export function groupReservableByOrigin(records: RawRecord[]): Destination[] {
   return groupBy(records, 'origine')
 }
 
 /**
- * Destinations réservables depuis une origine sur une plage de dates.
- * Chaque destination porte la liste des jours où elle est joignable.
+ * Bookable destinations from an origin over a date range.
+ * Each destination carries the list of days it can be reached on.
  */
 export function groupReservableByDate(records: RawRecord[]): Destination[] {
   const datesByDest = new Map<string, Set<string>>()
@@ -85,11 +85,11 @@ export function groupReservableByDate(records: RawRecord[]): Destination[] {
       trains: [] as Train[],
       availableDates: [...dates].sort(),
     }))
-    // Les plus « robustes » (joignables le plus de jours) d'abord.
+    // Most robust first (reachable on the largest number of days).
     .sort((a, b) => b.availableDates.length - a.availableDates.length || a.label.localeCompare(b.label))
 }
 
-/** Libellés aux caractères de contrôle C1 : le dataset en contient un, à l'encodage abîmé. */
+/** Labels carrying C1 control characters: the dataset holds one, with broken encoding. */
 function isMangled(label: string): boolean {
   for (let i = 0; i < label.length; i++) {
     const code = label.charCodeAt(i)
@@ -99,20 +99,11 @@ function isMangled(label: string): boolean {
 }
 
 /**
- * Libellés de gares distincts, pour l'autocomplétion.
+ * Destinations whose outbound AND return legs are both bookable.
  *
- * Via `group_by` et non l'endpoint `facets` : celui-ci plafonne silencieusement à
- * 100 valeurs et masquait 238 des 341 gares du dataset — Amiens, Annecy, Arcachon
- * ou Angoulême étaient introuvables dans la recherche.
- */
-/**
- * Destinations dont l'aller ET le retour sont réservables — le besoin réel d'un abonné
- * TGVmax qui part en week-end.
- *
- * `outbound` = trains hub → X le jour de l'aller. `inbound` = trains Y → hub le jour du
- * retour ; le champ `origine` de ces enregistrements désigne donc la destination candidate.
- * On ne garde que les gares présentes des deux côtés. Coût : deux appels amont, comme une
- * recherche simple.
+ * `outbound` = hub → X trains on the outbound day. `inbound` = Y → hub trains on the return
+ * day, so the `origine` field of those records is the candidate destination. Only stations
+ * present on both sides are kept. Cost: two upstream calls, same as a plain search.
  */
 export function groupRoundTrip(outbound: RawRecord[], inbound: RawRecord[]): Destination[] {
   const outByStation = new Map<string, Train[]>()
@@ -149,6 +140,13 @@ export function groupRoundTrip(outbound: RawRecord[], inbound: RawRecord[]): Des
     .sort((a, b) => a.label.localeCompare(b.label))
 }
 
+/**
+ * Distinct station labels, for autocomplete.
+ *
+ * Through `group_by` and not the `facets` endpoint: that one silently caps at 100 values
+ * and hid 238 of the dataset's 341 stations — Amiens, Annecy, Arcachon and Angoulême were
+ * simply not findable in the search.
+ */
 export async function fetchStationLabels(): Promise<string[]> {
   const labels = new Set<string>()
   for (const field of ['origine', 'destination']) {
@@ -158,7 +156,7 @@ export async function fetchStationLabels(): Promise<string[]> {
     )
     for (const row of res.results || []) {
       const value = row[field]
-      // Le libellé abîmé est un doublon d'une gare déjà listée : on l'écarte de la saisie.
+      // The broken label duplicates a station already listed: keep it out of the input.
       if (value && !isMangled(value)) labels.add(value)
     }
   }
@@ -172,7 +170,7 @@ export async function fetchOutbound(origin: string, date: string): Promise<RawRe
   })
 }
 
-/** Trains réservables ARRIVANT dans une gare un jour donné (recherche inverse). */
+/** Bookable trains ARRIVING at a station on a given day (reverse search). */
 export async function fetchInbound(destination: string, date: string): Promise<RawRecord[]> {
   return fetchRecords({
     refine: [`date:${date}`, 'od_happy_card:OUI'],
@@ -180,7 +178,7 @@ export async function fetchInbound(destination: string, date: string): Promise<R
   })
 }
 
-/** Trains réservables depuis une origine sur une plage de dates [from, to] incluse. */
+/** Bookable trains from an origin over the inclusive date range [from, to]. */
 export async function fetchOutboundRange(origin: string, from: string, to: string): Promise<RawRecord[]> {
   return fetchRecords({
     refine: ['od_happy_card:OUI'],

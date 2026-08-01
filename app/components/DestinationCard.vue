@@ -2,14 +2,8 @@
 import type { Destination, SearchMode } from '~~/shared/types'
 import { prettyLabel } from '~~/shared/stations'
 
-/**
- * Une ligne de résultat. Elle sert à *choisir* une ville, pas à l'étudier : nom, notoriété,
- * durée du trajet le plus court, amplitude des départs. Le détail (horaires, réservation,
- * dates de retour) vit dans la fiche de la carte, ouverte au clic.
- *
- * Une recherche à quatre semaines renvoie couramment 70 destinations, une exploration sur
- * une semaine en renvoie 130 : tout déplier ferait plusieurs mètres de défilement.
- */
+/** One result row: enough to *pick* a city, not to study it. A search commonly returns
+ *  70 to 130 of them, so the detail lives in the map popover. */
 const props = defineProps<{
   destination: Destination
   mode: SearchMode
@@ -49,8 +43,8 @@ function formatDate(iso: string): string {
       @focus="emit('hover', destination.label)"
       @blur="emit('hover', null)"
     >
-      <!-- Barre d'accent plutôt qu'un liseré tout autour : lisible du coin de l'œil en
-           faisant défiler, sans redessiner un cadre autour de chaque ligne. -->
+      <!-- An accent bar rather than an outline: readable out of the corner of the eye
+           while scrolling, without a box around every row. -->
       <span v-if="selected" class="absolute inset-y-0 left-0 w-[3px] bg-accent" />
 
       <div class="flex items-baseline gap-2">
@@ -58,9 +52,7 @@ function formatDate(iso: string): string {
         <span v-if="pop.tier > 0" :title="pop.label" class="shrink-0 text-[10px] text-amber-400">
           {{ pop.stars }}
         </span>
-        <!-- Le chiffre sur lequel on tranche vraiment : Lyon et Perpignan se ressemblent
-             dans une liste, 1h56 et 5h07 ne se ressemblent pas. En navy, pas en teal :
-             la couleur d'accent est réservée à l'état interactif. -->
+        <!-- Navy, not teal: the accent colour is reserved for interactive state. -->
         <span
           v-if="fastest"
           data-test="card-duration"

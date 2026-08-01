@@ -1,8 +1,8 @@
 import { cleanString } from './normalize'
 
 /**
- * Score de notoriété touristique par gare = nb d'éditions linguistiques Wikipédia
- * de la ville (proxy gratuit). Construit par scripts/build-popularity.mjs.
+ * Tourist notoriety score per station = number of Wikipedia language editions for the city
+ * (a free proxy). Built by scripts/build-popularity.mjs.
  */
 let index: Record<string, number> | null = null
 
@@ -17,7 +17,7 @@ async function getIndex(): Promise<Record<string, number>> {
   return index
 }
 
-/** Score de notoriété d'une gare (undefined si inconnue). */
+/** Notoriety score of a station (undefined when unknown). */
 export async function lookupPopularity(label: string): Promise<number | undefined> {
   const idx = await getIndex()
   return idx[cleanString(label)]

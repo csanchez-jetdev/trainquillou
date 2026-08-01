@@ -44,8 +44,7 @@ function fmtDay(iso: string): string {
         Exploration partielle (budget d'appels atteint) : d'autres trajets à 2 correspondances peuvent exister.
       </p>
 
-      <!-- `pb-14` sur mobile : de quoi faire défiler le dernier itinéraire au-dessus de la
-           bascule carte / liste, qui flotte par-dessus le bas de la liste. -->
+      <!-- `pb-14` on mobile: enough scroll to clear the floating map/list toggle. -->
       <ul v-if="route.itineraries.length" class="flex flex-col gap-2 overflow-auto pr-1 pb-14 md:pb-0">
         <li
           v-for="(it, i) in route.itineraries"
@@ -83,7 +82,6 @@ function fmtDay(iso: string): string {
         Aucun itinéraire TGVmax trouvé ce jour-là. Essayez d'augmenter le nombre de correspondances ou de changer de date.
       </p>
 
-      <!-- Jours suivants où un trajet ≤ 1 correspondance existe -->
       <div v-if="route.alsoAvailable?.length" class="mt-1 border-t border-slate-100 pt-2">
         <p class="px-1 text-xs text-rail-soft">Aussi possible les jours suivants :</p>
         <div class="mt-1 flex flex-wrap gap-1.5 px-1">

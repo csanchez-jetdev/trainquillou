@@ -11,8 +11,8 @@ export default defineCachedEventHandler(
     if (!from || !to || !date) {
       throw createError({ statusCode: 400, statusMessage: 'from, to and date are required' })
     }
-    // Sans ce garde-fou, l'exploration part chercher des correspondances entre une ville
-    // et elle-même — jusqu'à quelques dizaines d'appels amont pour une question vide.
+    // Without this guard, the search looks for connections between a city and itself —
+    // dozens of upstream calls for an empty question.
     if (stationKey(from) === stationKey(to)) {
       throw createError({ statusCode: 400, statusMessage: 'from and to must differ' })
     }
@@ -30,7 +30,6 @@ export default defineCachedEventHandler(
       feasibleNextDays(from, to, date, 3),
     ])
 
-    // Enrichissement des coordonnées de chaque leg
     const enriched = itineraries.map((it) => ({
       ...it,
       legs: it.legs.map((l) => ({

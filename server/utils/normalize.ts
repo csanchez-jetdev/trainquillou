@@ -1,4 +1,4 @@
-/** Minuscule, sans accents, sans ponctuation, espaces compactés. */
+/** Lowercase, no accents, no punctuation, whitespace collapsed. */
 export function cleanString(str: string): string {
   return (str || '')
     .normalize('NFD')
@@ -8,7 +8,7 @@ export function cleanString(str: string): string {
     .trim()
 }
 
-/** Deux libellés désignent-ils la même gare (tolérant accents/casse/inclusion) ? */
+/** Do two labels name the same station (tolerant of accents, case and inclusion)? */
 export function sameStation(a: string, b: string): boolean {
   const x = cleanString(a)
   const y = cleanString(b)

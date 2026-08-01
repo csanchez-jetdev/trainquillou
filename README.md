@@ -203,6 +203,26 @@ uv run scripts/build-booking.py      # slugs de ville pour les liens de réserva
 Ils nécessitent [uv](https://docs.astral.sh/uv/) ; les dépendances sont déclarées dans l'en-tête
 de chaque script.
 
+### Images du hero
+
+L'image d'accueil est l'élément LCP de la page : ses variantes sont générées à la main et
+commitées, plutôt que produites par un module Nuxt. L'image ne change jamais, et `.output/`
+doit rester sans binaire natif pour qu'un build lancé depuis un Mac arm64 tourne dans le
+conteneur amd64 (voir `infra/deploy.sh`). Deux variantes AVIF (69 % de moins que le JPEG à
+qualité indiscernable), `hero.jpg` en repli pour les navigateurs sans AVIF.
+
+Pour les régénérer, avec [vips](https://www.libvips.org/) (`brew install vips`) :
+
+```bash
+vips thumbnail public/hero.jpg 'public/hero-800.avif[Q=58]' 800
+vips thumbnail public/hero.jpg 'public/hero-1672.avif[Q=58]' 1672
+vips thumbnail public/hero.jpg public/hero-800.jpg 800
+vips thumbnail public/hero.jpg public/hero-1200.jpg 1200
+```
+
+**Ne pas utiliser `sips` pour l'AVIF** : il produit un fichier dont Chromium lit les dimensions
+mais pas les pixels, et le hero s'affiche vide.
+
 ## Contribuer
 
 Les contributions sont bienvenues. Quelques conventions :

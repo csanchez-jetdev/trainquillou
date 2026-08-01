@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { STATION_PAGES, stationBySlug, prettyLabel } from '~~/shared/stations'
 
-/**
- * Page d'entrée par gare de départ. Volontairement statique : aucun appel à l'open data
- * SNCF au moment du build, donc pré-rendable pour les 300 gares sans marteler leur API.
- * Les disponibilités, elles, se chargent dans l'application.
- */
+/** Station landing page. Static by design: no SNCF call at build time, so 300 pages can
+ *  prerender without hammering their API. Availability loads in the app itself. */
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
 
@@ -17,7 +14,7 @@ if (!station.value) {
 const name = computed(() => prettyLabel(station.value!.label))
 const appLink = computed(() => `/app?origin=${encodeURIComponent(station.value!.label)}`)
 
-/** Quelques gares voisines dans la liste, pour le maillage interne. */
+/** A few neighbouring stations from the list, for internal linking. */
 const others = computed(() => {
   const i = STATION_PAGES.findIndex((s) => s.slug === slug.value)
   const pool = [...STATION_PAGES.slice(i + 1), ...STATION_PAGES.slice(0, i)]
@@ -64,7 +61,7 @@ useHead(() => ({
     <header class="border-b border-slate-200 bg-white">
       <div class="mx-auto flex max-w-4xl items-center justify-between px-5 py-4 sm:px-8">
         <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-          <!-- Décoratif : le mot « Trainquillou » suit dans le même lien. -->
+          <!-- Decorative: the name follows in the same link. -->
           <img
             src="/logo-mark.png"
             alt=""

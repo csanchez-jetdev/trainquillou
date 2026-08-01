@@ -1,22 +1,21 @@
 /**
- * URL de réservation vers les deux revendeurs, construites depuis les slugs de ville
- * vérifiés par scripts/build-booking.py.
+ * Booking URLs for both resellers, built from the city slugs verified by
+ * scripts/build-booking.py.
  *
- * Ni SNCF Connect ni Trainline n'exposent de lien profond vers une recherche
- * pré-remplie : leurs formulaires sont pilotés en JavaScript, sans `action`, et les
- * boutons « Réserver » de leurs pages horaires n'ont pas de `href`. Leur seule surface
- * publique adressable est la page horaires d'une paire de villes — sans la date, que
- * l'utilisateur devra donc choisir à l'arrivée.
+ * Neither SNCF Connect nor Trainline exposes a deep link to a pre-filled search: their forms
+ * are JavaScript-driven with no `action`, and the "Réserver" buttons on their timetable pages
+ * carry no `href`. Their only addressable public surface is the timetable page for a pair of
+ * cities — without the date, which the visitor has to pick on arrival.
  */
 
-/** SNCF Connect génère ces pages pour des paires arbitraires. */
+/** SNCF Connect generates these pages for arbitrary pairs. */
 export function sncfConnectUrl(fromSlug: string, toSlug: string): string {
   return `https://www.sncf-connect.com/train/horaires/${fromSlug}/${toSlug}`
 }
 
 /**
- * Trainline ne publie ces pages que pour les liaisons fréquentées : une liaison rare
- * peut tomber sur leur 404. C'est pour cette raison un lien secondaire.
+ * Trainline only publishes these pages for busy routes: a rare one can land on their 404.
+ * Hence a secondary link.
  */
 export function trainlineUrl(fromSlug: string, toSlug: string): string {
   return `https://www.thetrainline.com/fr/horaires-train/${fromSlug}-a-${toSlug}`

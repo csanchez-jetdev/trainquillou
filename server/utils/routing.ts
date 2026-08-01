@@ -2,15 +2,15 @@ import { cleanString, sameStation } from './normalize'
 import { fetchOutbound, fetchInbound, type RawRecord } from './sncf'
 import type { Itinerary, RouteLeg } from '~~/shared/types'
 
-/** Marge minimale de correspondance (minutes) — les réservations TGVmax sont indépendantes. */
+/** Minimum transfer margin (minutes) — TGVmax bookings are independent of each other. */
 const MIN_TRANSFER = 10
-/** Nombre maximal de gares intermédiaires supporté. */
+/** Highest number of intermediate stations supported. */
 const MAX_STOPS = 3
-/** Budget d'appels API pour l'expansion intermédiaire (le 1er/dernier hop n'y comptent pas). */
+/** API call budget for intermediate expansion (first and last hops do not count). */
 const FETCH_BUDGET = 50
-/** Taille max du front d'exploration conservé à chaque niveau (les arrivées les plus tôt). */
+/** Max size of the exploration frontier kept at each level (earliest arrivals). */
 const FRONTIER_CAP = 12
-/** Nombre d'itinéraires distincts renvoyés. */
+/** Number of distinct itineraries returned. */
 const MAX_ITINERARIES = 8
 
 interface InternalLeg {
@@ -24,8 +24,8 @@ interface InternalLeg {
 }
 
 interface PartialPath {
-  node: string // gare courante (fin du dernier leg)
-  arrMin: number // heure d'arrivée à `node`
+  node: string // current station (end of the last leg)
+  arrMin: number // arrival time at `node`
   legs: InternalLeg[]
   visited: Set<string>
 }
@@ -38,7 +38,7 @@ function toMin(t: string): number {
 function toLeg(r: RawRecord): InternalLeg {
   const depMin = toMin(r.heure_depart)
   let arrMin = toMin(r.heure_arrivee)
-  if (arrMin < depMin) arrMin += 1440 // arrivée après minuit
+  if (arrMin < depMin) arrMin += 1440 // arrival past midnight
   return {
     from: r.origine,
     to: r.destination,
@@ -50,25 +50,24 @@ function toLeg(r: RawRecord): InternalLeg {
   }
 }
 
-/** Correspondance valable : départ suffisamment après l'arrivée, le même jour. */
+/** Valid connection: departure far enough after arrival, on the same day. */
 function connects(prevArrMin: number, next: InternalLeg): boolean {
   return prevArrMin < 1440 && next.depMin >= prevArrMin + MIN_TRANSFER
 }
 
 export interface RouteSearch {
   itineraries: Itinerary[]
-  truncated: boolean // true si le budget d'appels a borné l'exploration
+  truncated: boolean // true when the call budget bounded the exploration
 }
 
 /**
- * Cherche des itinéraires A → B le jour `date`, avec au plus `maxStops` (0..3) gares
- * intermédiaires, en respectant l'ordre temporel des correspondances.
+ * Finds A → B itineraries on `date`, with at most `maxStops` (0..3) intermediate stations,
+ * respecting the chronological order of connections.
  *
- * BFS « time-dependent » : on part de outbound(A), on étend de proche en proche les
- * gares intermédiaires (appels bornés par un budget + élagage par arrivée au plus tôt),
- * et le dernier hop vers B est résolu via l'index inbound(B) — donc 0/1 correspondance
- * ne coûtent que 2 appels. Renvoie un itinéraire par « forme de trajet » (jeu de gares
- * intermédiaires), le plus rapide pour cette forme.
+ * Time-dependent BFS: start from outbound(A), expand intermediate stations step by step
+ * (calls bounded by a budget, pruned by earliest arrival), and resolve the last hop to B
+ * through the inbound(B) index — so 0 or 1 connection costs only 2 calls. Returns one
+ * itinerary per "trip shape" (set of intermediate stations), the fastest for that shape.
  */
 export async function findItineraries(
   from: string,
@@ -94,11 +93,11 @@ export async function findItineraries(
 
   const fromLegs = await legsFrom(from)
 
-  // Trajets directs
+  // Direct trips
   for (const l of fromLegs) if (sameStation(l.to, to)) completed.push([l])
 
   if (stops >= 1) {
-    // Index des legs Y → B par gare Y (résout le dernier hop sans appel supplémentaire)
+    // Index of Y → B legs by station Y (resolves the last hop with no extra call)
     const inbound = (await fetchInbound(to, date)).map(toLeg)
     const inboundByY = new Map<string, InternalLeg[]>()
     for (const l of inbound) {
@@ -114,15 +113,15 @@ export async function findItineraries(
       }
     }
 
-    // Front initial : un leg A → X1 (X1 ni A ni B)
+    // Initial frontier: one A → X1 leg (X1 being neither A nor B)
     let frontier: PartialPath[] = fromLegs
       .filter((l) => !sameStation(l.to, to) && !sameStation(l.to, from))
       .map((l) => ({ node: l.to, arrMin: l.arrMin, legs: [l], visited: new Set([cleanString(from), cleanString(l.to)]) }))
 
-    // 1 correspondance : ferme chaque X1 vers B
+    // 1 connection: close each X1 towards B
     for (const s of frontier) closeToB(s.legs, s.node, s.arrMin)
 
-    // Correspondances supplémentaires : on ajoute une gare intermédiaire à chaque tour
+    // Further connections: one more intermediate station per round
     for (let extra = 1; extra < stops; extra++) {
       const next: PartialPath[] = []
       for (const s of frontier) {
@@ -141,11 +140,11 @@ export async function findItineraries(
             continue
           }
           const state: PartialPath = { node: l.to, arrMin: l.arrMin, legs: path, visited: new Set([...s.visited, nk]) }
-          closeToB(path, l.to, l.arrMin) // ferme à ce niveau de correspondance
+          closeToB(path, l.to, l.arrMin) // close at this connection level
           next.push(state)
         }
       }
-      // Élagage par dominance : meilleure (plus tôt) arrivée par gare, puis cap
+      // Dominance pruning: best (earliest) arrival per station, then cap
       const bestByNode = new Map<string, PartialPath>()
       for (const s of next) {
         const ex = bestByNode.get(cleanString(s.node))
@@ -155,7 +154,7 @@ export async function findItineraries(
     }
   }
 
-  // Une forme de trajet = la séquence des gares intermédiaires. On garde le plus rapide.
+  // A trip shape = the sequence of intermediate stations. Keep the fastest one.
   const bestByShape = new Map<string, Itinerary>()
   for (const legs of completed) {
     const intermediate = legs.slice(0, -1).map((l) => l.to)
@@ -187,7 +186,7 @@ export async function findItineraries(
   return { itineraries, truncated }
 }
 
-/** Ajoute `n` jours à une date YYYY-MM-DD (UTC, sans dépendance). */
+/** Adds `n` days to a YYYY-MM-DD date (UTC, no dependency). */
 function addDays(date: string, n: number): string {
   const [y, m, d] = date.split('-').map(Number)
   const dt = new Date(Date.UTC(y!, m! - 1, d! + n))
@@ -195,10 +194,9 @@ function addDays(date: string, n: number): string {
 }
 
 /**
- * Parmi les `n` jours suivant `baseDate`, lesquels offrent un trajet A → B faisable
- * en ≤ 1 correspondance ? Sonde légère (2 appels/jour, en parallèle) pour suggérer
- * d'autres dates quand la date demandée ne donne rien — n'explore pas les trajets à
- * 2+ correspondances (coût maîtrisé).
+ * Which of the `n` days after `baseDate` offer an A → B trip in ≤ 1 connection? A light
+ * probe (2 calls per day, in parallel) to suggest other dates when the requested one comes
+ * up empty. Does not explore trips with 2+ connections, to keep the cost bounded.
  */
 export async function feasibleNextDays(from: string, to: string, baseDate: string, n = 3): Promise<string[]> {
   const days = Array.from({ length: n }, (_, i) => addDays(baseDate, i + 1))
@@ -206,9 +204,9 @@ export async function feasibleNextDays(from: string, to: string, baseDate: strin
     days.map(async (day) => {
       const [out, inb] = await Promise.all([fetchOutbound(from, day), fetchInbound(to, day)])
       const outLegs = out.map(toLeg)
-      // Direct ?
+      // Direct?
       if (outLegs.some((l) => sameStation(l.to, to))) return day
-      // 1 correspondance ?
+      // 1 connection?
       const inByY = new Map<string, InternalLeg[]>()
       for (const r of inb.map(toLeg)) {
         const k = cleanString(r.from)

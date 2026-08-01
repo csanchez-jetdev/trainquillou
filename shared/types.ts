@@ -8,18 +8,18 @@ export interface Destination {
   label: string
   coords: [number, number] | null // [lat, lon]
   trains: Train[]
-  availableDates?: string[] // mode=range : jours où la destination est joignable
-  returnTrains?: Train[] // mode=roundtrip : trains du retour, à la date de retour
-  popularity?: number // notoriété touristique : nb d'éditions Wikipédia de la ville (proxy)
-  slug?: string // slug de ville pour les URL de réservation (voir server/utils/booking.ts)
+  availableDates?: string[] // mode=range: days the destination can be reached on
+  returnTrains?: Train[] // mode=roundtrip: return trains, on the return date
+  popularity?: number // tourist notoriety: number of Wikipedia editions for the city (proxy)
+  slug?: string // city slug for booking URLs (see server/utils/booking.ts)
 }
 
 /**
- * Sens de recherche autour d'un « hub » :
- * - `from`      : départs DEPUIS le hub vers des destinations (défaut)
- * - `to`        : arrivées VERS le hub depuis des origines possibles (recherche inverse)
- * - `range`     : départs depuis le hub sur une plage de dates (exploration multi-jours)
- * - `roundtrip` : destinations dont l'aller ET le retour sont réservables (escapade)
+ * Search direction around a "hub":
+ * - `from`      : departures FROM the hub towards destinations (default)
+ * - `to`        : arrivals AT the hub from possible origins (reverse search)
+ * - `range`     : departures from the hub over a date range (multi-day exploration)
+ * - `roundtrip` : destinations whose outbound AND return legs are both bookable
  */
 export type SearchMode = 'from' | 'to' | 'range' | 'roundtrip'
 
@@ -28,20 +28,20 @@ export interface SearchResult {
     label: string
     coords: [number, number] | null
     slug?: string
-  } // le hub (départ ou arrivée selon le mode)
-  date: string // YYYY-MM-DD (date de début en mode range, date d'aller en mode roundtrip)
-  dateTo?: string // YYYY-MM-DD : fin de plage en mode range, date de retour en mode roundtrip
+  } // the hub (departure or arrival, depending on the mode)
+  date: string // YYYY-MM-DD (range start in range mode, outbound date in roundtrip mode)
+  dateTo?: string // YYYY-MM-DD: range end in range mode, return date in roundtrip mode
   mode: SearchMode
-  destinations: Destination[] // les gares reliées (destinations, ou origines en mode `to`)
+  destinations: Destination[] // connected stations (destinations, or origins in `to` mode)
 }
 
 export interface ReturnDatesResult {
   origin: string
   destination: string
-  dates: string[] // YYYY-MM-DD, triées croissantes
+  dates: string[] // YYYY-MM-DD, ascending
 }
 
-// --- Mode itinéraire multi-sauts (A → B via gares intermédiaires) ---
+// --- Multi-hop itinerary mode (A → B via intermediate stations) ---
 
 export interface RouteLeg {
   from: string
@@ -55,10 +55,10 @@ export interface RouteLeg {
 
 export interface Itinerary {
   legs: RouteLeg[]
-  stops: number // nombre de gares intermédiaires (legs.length - 1)
-  departure: string // heure de départ du 1er leg
-  arrival: string // heure d'arrivée du dernier leg
-  durationMin: number // durée totale porte-à-porte en minutes
+  stops: number // number of intermediate stations (legs.length - 1)
+  departure: string // departure time of the first leg
+  arrival: string // arrival time of the last leg
+  durationMin: number // total door-to-door duration, in minutes
 }
 
 export interface RouteResult {
@@ -66,6 +66,6 @@ export interface RouteResult {
   to: { label: string; coords: [number, number] | null }
   date: string // YYYY-MM-DD
   maxStops: number
-  itineraries: Itinerary[] // triées par durée croissante
-  alsoAvailable: string[] // jours suivants (YYYY-MM-DD) où un trajet ≤1 corresp. existe
+  itineraries: Itinerary[] // sorted by increasing duration
+  alsoAvailable: string[] // following days (YYYY-MM-DD) with a trip in ≤1 connection
 }

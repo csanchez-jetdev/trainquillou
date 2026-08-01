@@ -13,14 +13,14 @@ export function useSearch() {
     const m = route.query.mode
     return m === 'to' || m === 'range' || m === 'roundtrip' || m === 'route' ? m : 'from'
   })
-  /** Les modes qui exigent une seconde date : plage d'exploration, ou date de retour. */
+  /** Modes that need a second date: range exploration, or return date. */
   const needsDateTo = computed(() => mode.value === 'range' || mode.value === 'roundtrip')
   const hasQuery = computed(() => Boolean(origin.value && date.value))
 
   const { data, pending, error, refresh } = useAsyncData<SearchResult | null>(
     'search',
     () => {
-      // Le mode itinéraire est servi par useItinerary, pas par /api/search.
+      // Route mode is served by useItinerary, not by /api/search.
       if (mode.value === 'route') return Promise.resolve(null)
       if (!origin.value || !date.value) return Promise.resolve(null)
       if (needsDateTo.value && !dateTo.value) return Promise.resolve(null)
