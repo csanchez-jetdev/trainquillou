@@ -29,6 +29,10 @@ const SITE_URL = (process.env.NUXT_PUBLIC_SITE_URL || 'https://trainquillou.fr')
  */
 const CACHED_IMAGES = [
   'hero.jpg',
+  'hero-1200.jpg',
+  'hero-800.jpg',
+  'hero-1672.avif',
+  'hero-800.avif',
   'og-image.jpg',
   'logo-mark.png',
   'logo-mark-white.png',
@@ -100,18 +104,12 @@ export default defineNuxtConfig({
      * Un logo remplacé doit finir par atteindre les visiteurs déjà venus, ce
      * qu'`immutable` interdit jusqu'à expiration.
      */
-    routeRules: {
-      ...Object.fromEntries(
-        CACHED_IMAGES.map((file) => [
-          `/${file}`,
-          { headers: { 'cache-control': 'public, max-age=2592000, stale-while-revalidate=86400' } },
-        ]),
-      ),
-      // Les variantes générées par @nuxt/image portent leurs transformations dans
-      // l'URL (`/_ipx/f_avif,w_1024/hero.jpg`) : une image modifiée produit une
-      // autre adresse, donc `immutable` un an sans risque de servir du périmé.
-      '/_ipx/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    },
+    routeRules: Object.fromEntries(
+      CACHED_IMAGES.map((file) => [
+        `/${file}`,
+        { headers: { 'cache-control': 'public, max-age=2592000, stale-while-revalidate=86400' } },
+      ]),
+    ),
   },
 
   runtimeConfig: {

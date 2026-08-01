@@ -142,18 +142,44 @@ useHead({
     -->
     <section class="relative flex min-h-[88dvh] w-full flex-col">
       <!--
-        Image de fond. `alt` renseigné et non vide : ce n'est pas un ornement mais
-        l'illustration du sujet de la page, et c'est ce qui la rend indexable dans
-        la recherche d'images. Les logos, eux, restent décoratifs (voir plus bas).
+        Image de fond, et élément LCP de la page : c'est la seule image dont le poids
+        compte vraiment. Deux variantes AVIF (69 % de moins que le JPEG à qualité
+        indiscernable) et `hero.jpg` en repli pour les navigateurs sans AVIF.
+
+        Les variantes sont générées à la main et versionnées, pas produites par un
+        module : l'image ne change jamais, et `.output/` doit rester sans binaire
+        natif pour que le build d'un Mac arm64 tourne dans le conteneur amd64
+        (voir infra/deploy.sh). Pour les régénérer, avec vips (`brew install vips`) :
+
+          vips thumbnail public/hero.jpg 'public/hero-800.avif[Q=58]' 800
+          vips thumbnail public/hero.jpg 'public/hero-1672.avif[Q=58]' 1672
+          vips thumbnail public/hero.jpg public/hero-800.jpg 800
+          vips thumbnail public/hero.jpg public/hero-1200.jpg 1200
+
+        Ne pas utiliser `sips` pour l'AVIF : il produit un fichier dont Chromium lit
+        les dimensions mais pas les pixels, et le hero s'affiche vide.
+
+        `alt` renseigné et non vide : ce n'est pas un ornement mais l'illustration du
+        sujet de la page, et c'est ce qui la rend indexable dans la recherche
+        d'images. Les logos, eux, restent décoratifs (voir plus bas).
       -->
-      <img
-        src="/hero.jpg"
-        alt="Un TGV lancé à travers une campagne française vallonnée au coucher du soleil, un village perché à l'horizon"
-        fetchpriority="high"
-        width="1672"
-        height="941"
-        class="absolute inset-0 h-full w-full object-cover"
-      >
+      <picture>
+        <source
+          type="image/avif"
+          srcset="/hero-800.avif 800w, /hero-1672.avif 1672w"
+          sizes="100vw"
+        >
+        <img
+          src="/hero.jpg"
+          srcset="/hero-800.jpg 800w, /hero-1200.jpg 1200w, /hero.jpg 1672w"
+          sizes="100vw"
+          alt="Un TGV lancé à travers une campagne française vallonnée au coucher du soleil, un village perché à l'horizon"
+          fetchpriority="high"
+          width="1672"
+          height="941"
+          class="absolute inset-0 h-full w-full object-cover"
+        >
+      </picture>
       <!-- Voiles : navy à gauche pour la lisibilité du texte, halo teal/corail pour la couleur de marque -->
       <div class="absolute inset-0 bg-gradient-to-r from-rail/95 via-rail/55 to-rail/10" />
       <div class="absolute inset-0 bg-gradient-to-tr from-accent/20 via-transparent to-coral/15" />
