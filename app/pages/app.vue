@@ -171,7 +171,15 @@ useHead({
     <!-- En-tête de l'app -->
     <header class="z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
       <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-        <img src="/logo-mark.png" alt="Trainquillou" class="h-8 w-8 object-contain">
+        <!-- Décoratif : le mot « Trainquillou » suit dans le même lien. -->
+        <img
+          src="/logo-mark.png"
+          alt=""
+          aria-hidden="true"
+          width="32"
+          height="32"
+          class="h-8 w-8 object-contain"
+        >
         Trainquillou
       </NuxtLink>
       <GithubLink class="text-rail-soft transition hover:text-rail" />
@@ -327,7 +335,8 @@ useHead({
           <p class="pointer-events-auto border-t border-slate-100 bg-white/90 px-3 py-2 text-[11px] text-rail-soft/80 backdrop-blur-sm md:bg-white">
             Données <a class="underline" href="https://data.sncf.com/explore/dataset/tgvmax/" target="_blank" rel="noopener">open data SNCF</a> ·
             fond de carte <a class="underline" href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, données
-            <a class="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+            <a class="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ·
+            <NuxtLink to="/a-propos" class="underline">À propos</NuxtLink>
           </p>
         </div>
       </aside>

@@ -1,7 +1,7 @@
 import { STATION_PAGES } from '~~/shared/stations'
 
 /**
- * Sitemap : la landing et les pages gare.
+ * Sitemap : la landing, la page « À propos » et les pages gare.
  *
  * `/app` en est absent volontairement : la page est en `noindex` (coquille sans
  * contenu rendu côté serveur), et un sitemap ne doit lister que des URL qu'on
@@ -13,6 +13,7 @@ export default defineEventHandler((event) => {
 
   const urls = [
     { loc: base, priority: '1.0' },
+    { loc: `${base}/a-propos`, priority: '0.5' },
     ...STATION_PAGES.map((s) => ({ loc: `${base}/depuis/${s.slug}`, priority: '0.7' })),
   ]
 

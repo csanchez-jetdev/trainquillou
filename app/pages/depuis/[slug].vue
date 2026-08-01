@@ -27,10 +27,10 @@ const others = computed(() => {
 const { public: { siteUrl } } = useRuntimeConfig()
 const canonical = computed(() => `${siteUrl.replace(/\/$/, '')}/depuis/${slug.value}`)
 
-const title = computed(() => `Destinations TGVmax depuis ${name.value} — Trainquillou`)
+const title = computed(() => `Destinations TGVmax / MAX JEUNE depuis ${name.value} — Trainquillou`)
 const description = computed(
-  () => `Toutes les destinations TGVmax réservables depuis ${name.value}, sur une carte. `
-    + `Aller-retour week-end, dates de retour, itinéraires avec correspondances. `
+  () => `Toutes les destinations TGVmax (MAX JEUNE) réservables depuis ${name.value}, sur une `
+    + `carte. Aller-retour week-end, dates de retour, itinéraires avec correspondances. `
     + `Gratuit, sans compte.`,
 )
 
@@ -64,7 +64,15 @@ useHead(() => ({
     <header class="border-b border-slate-200 bg-white">
       <div class="mx-auto flex max-w-4xl items-center justify-between px-5 py-4 sm:px-8">
         <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-          <img src="/logo-mark.png" alt="Trainquillou" class="h-8 w-8 object-contain">
+          <!-- Décoratif : le mot « Trainquillou » suit dans le même lien. -->
+          <img
+            src="/logo-mark.png"
+            alt=""
+            aria-hidden="true"
+            width="32"
+            height="32"
+            class="h-8 w-8 object-contain"
+          >
           Trainquillou
         </NuxtLink>
         <div class="flex items-center gap-4">
@@ -87,8 +95,9 @@ useHead(() => ({
         Destinations <span class="text-gradient">TGVmax</span> depuis {{ name }}
       </h1>
       <p class="mt-4 max-w-2xl text-lg text-rail-soft">
-        Où partir depuis {{ name }} avec votre abonnement TGVmax ? Choisissez une date, et toutes
-        les destinations où il reste des places réservables apparaissent sur une carte.
+        Où partir depuis {{ name }} avec votre abonnement TGVmax, renommé MAX JEUNE par la SNCF ?
+        Choisissez une date, et toutes les destinations où il reste des places réservables
+        apparaissent sur une carte.
       </p>
 
       <div class="mt-8 flex flex-wrap gap-3">
@@ -161,6 +170,9 @@ useHead(() => ({
           rel="noopener"
         >open data SNCF</a>. Trainquillou n'est pas affilié à la SNCF et ne vend pas de billets ;
         la réservation se fait sur SNCF Connect.
+        <NuxtLink to="/a-propos" class="font-medium text-accent-strong hover:underline">
+          Méthode, sources et hébergement
+        </NuxtLink>.
       </p>
     </main>
   </div>

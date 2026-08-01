@@ -41,13 +41,19 @@ const FAQ = [
     q: 'Qu\'est-ce que TGVmax ?',
     a: 'Un abonnement SNCF pour les 16-27 ans donnant accès à un nombre illimité de trajets sur '
       + 'les trains éligibles, dans la limite des places réservées à l\'abonnement. Ces places sont '
-      + 'contingentées : un train peut circuler sans être ouvert à TGVmax. C\'est ce contingent que '
-      + 'Trainquillou rend visible.',
+      + 'contingentées : un train peut circuler sans être ouvert à l\'abonnement. C\'est ce '
+      + 'contingent que Trainquillou rend visible.',
+  },
+  {
+    q: 'TGVmax ou MAX JEUNE : quel est le bon nom ?',
+    a: 'Les deux désignent le même abonnement. La SNCF l\'a renommé MAX JEUNE en 2023, aux côtés '
+      + 'de MAX ACTIF et MAX SENIOR ; « TGVmax » reste le nom sous lequel la plupart des abonnés '
+      + 'le connaissent, et celui du jeu de données open data. Trainquillou emploie donc les deux.',
   },
   {
     q: 'Trainquillou est-il gratuit ?',
-    a: 'Oui, entièrement. Pas de compte, pas de paywall, pas de publicité, pas de traceur '
-      + 'analytique. Le code est ouvert sous licence AGPL-3.0.',
+    a: 'Oui, entièrement. Pas de compte, pas de paywall, pas de publicité, pas de régie ni de '
+      + 'traceur commercial. Le code est ouvert sous licence AGPL-3.0.',
   },
   {
     q: 'Trainquillou réserve-t-il mes billets ?',
@@ -56,8 +62,10 @@ const FAQ = [
   },
   {
     q: 'Les disponibilités sont-elles à jour ?',
-    a: 'Elles proviennent du jeu de données open data SNCF « tgvmax » et sont mises en cache dix '
-      + 'minutes par recherche. Une place peut donc partir entre l\'affichage et votre réservation.',
+    a: 'Elles proviennent du jeu de données open data SNCF « tgvmax », que la SNCF rafraîchit '
+      + 'chaque jour en début de matinée. Trainquillou garde chaque recherche dix minutes en cache '
+      + 'pour ne pas marteler son API. Une place peut donc partir entre l\'affichage et votre '
+      + 'réservation.',
   },
   {
     q: 'Combien de gares sont couvertes ?',
@@ -67,7 +75,20 @@ const FAQ = [
   {
     q: 'Comment trouver un aller-retour pour un week-end ?',
     a: 'Le mode « Aller-retour » demande une date de départ et une date de retour, puis n\'affiche '
-      + 'que les destinations dont les deux trajets ont des places TGVmax réservables.',
+      + 'que les destinations dont les deux trajets ont des places réservables.',
+  },
+  {
+    q: 'Qui est derrière Trainquillou ?',
+    a: 'Un projet indépendant, développé et maintenu par Clément sur son temps libre, dont le code '
+      + 'est public sous licence AGPL-3.0. Les signalements et les demandes passent par les issues '
+      + 'du dépôt GitHub, où l\'historique des corrections est visible de tous.',
+  },
+  {
+    q: 'Où le site est-il hébergé, et que mesure-t-il ?',
+    a: 'Sur un serveur privé loué chez OVH, à Gravelines (Nord, France), sans CDN intermédiaire. '
+      + 'La mesure d\'audience de l\'instance officielle est assurée par Rybbit, qui fonctionne '
+      + 'sans cookie, sans identifiant persistant et sans stocker les adresses IP — d\'où l\'absence '
+      + 'de bannière de consentement. Aucun compte, aucune donnée personnelle enregistrée.',
   },
 ]
 
@@ -75,7 +96,7 @@ const { public: { siteUrl } } = useRuntimeConfig()
 const base = siteUrl.replace(/\/$/, '')
 
 useHead({
-  title: 'Trainquillou — destinations TGVmax sur une carte, gratuit et sans compte',
+  title: 'Trainquillou — destinations TGVmax (MAX JEUNE) sur une carte, gratuit',
   link: [{ rel: 'canonical', href: base }],
   meta: [{ property: 'og:url', content: base }],
   script: [
@@ -120,10 +141,14 @@ useHead({
       suggestions du champ gare se faisait couper au bord du bloc.
     -->
     <section class="relative flex min-h-[88dvh] w-full flex-col">
-      <!-- Image de fond -->
+      <!--
+        Image de fond. `alt` renseigné et non vide : ce n'est pas un ornement mais
+        l'illustration du sujet de la page, et c'est ce qui la rend indexable dans
+        la recherche d'images. Les logos, eux, restent décoratifs (voir plus bas).
+      -->
       <img
         src="/hero.jpg"
-        alt=""
+        alt="Un TGV lancé à travers une campagne française vallonnée au coucher du soleil, un village perché à l'horizon"
         fetchpriority="high"
         width="1672"
         height="941"
@@ -136,7 +161,19 @@ useHead({
       <!-- En-tête transparent -->
       <header class="relative z-10 flex items-center justify-between px-5 py-4 sm:px-8">
         <span class="flex items-center gap-2 text-lg font-bold tracking-tight text-white">
-          <img src="/logo-mark-white.png" alt="Trainquillou" class="h-9 w-9 object-contain">
+          <!--
+            `alt=""` et `aria-hidden` : le mot « Trainquillou » suit immédiatement dans
+            le même élément. Un alt renseigné ferait annoncer le nom deux fois de suite
+            par un lecteur d'écran. `width`/`height` réservent la place avant décodage.
+          -->
+          <img
+            src="/logo-mark-white.png"
+            alt=""
+            aria-hidden="true"
+            width="36"
+            height="36"
+            class="h-9 w-9 object-contain"
+          >
           Trainquillou
         </span>
         <div class="flex items-center gap-5 text-sm font-medium text-white/80">
@@ -164,8 +201,8 @@ useHead({
             sur une carte, en un coup d'œil.
           </h1>
           <p class="mt-4 text-lg text-white/85">
-            Trouvez où partir avec votre abonnement TGVmax depuis n'importe quelle gare,
-            à n'importe quelle date. Open data, open source, sans pub.
+            Trouvez où partir avec votre abonnement TGVmax — devenu MAX JEUNE — depuis n'importe
+            quelle gare, à n'importe quelle date. Open data, open source, sans pub.
           </p>
           <!-- La recherche elle-même sert d'accroche : on part d'une gare et d'une date,
                pas d'un bouton qui promet un formulaire. Les autres modes restent atteignables
@@ -274,6 +311,10 @@ useHead({
             <dd class="mt-1.5 text-sm leading-relaxed text-rail-soft">{{ f.a }}</dd>
           </div>
         </dl>
+        <p class="mt-4 text-sm text-rail-soft">
+          Le détail de la méthode, des sources et de l'hébergement est sur la page
+          <NuxtLink to="/a-propos" class="font-medium text-accent-strong hover:underline">À propos</NuxtLink>.
+        </p>
       </div>
 
       <div class="relative mt-12 overflow-hidden rounded-3xl bg-gradient-to-br from-rail via-rail to-accent-strong px-6 py-14 text-center">
@@ -293,7 +334,14 @@ useHead({
     <footer class="border-t border-slate-200 py-8">
       <div class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-5 text-center text-sm text-rail-soft sm:px-8">
         <p class="flex items-center gap-2 font-semibold text-rail">
-          <img src="/logo-mark.png" alt="" class="h-7 w-7 object-contain">
+          <img
+            src="/logo-mark.png"
+            alt=""
+            aria-hidden="true"
+            width="28"
+            height="28"
+            class="h-7 w-7 object-contain"
+          >
           Trainquillou
         </p>
         <p>
@@ -303,7 +351,11 @@ useHead({
           · licence AGPL-3.0
         </p>
         <p class="text-rail-soft/70">Non affilié à la SNCF. La réservation des places TGVmax se fait sur SNCF Connect.</p>
-        <GithubLink label="Code source sur GitHub" class="mt-1 font-medium text-rail transition hover:text-accent-strong" />
+        <p class="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <NuxtLink to="/a-propos" class="font-medium text-rail transition hover:text-accent-strong">À propos</NuxtLink>
+          <span aria-hidden="true" class="text-rail-soft/40">·</span>
+          <GithubLink label="Code source sur GitHub" class="font-medium text-rail transition hover:text-accent-strong" />
+        </p>
       </div>
     </footer>
   </div>

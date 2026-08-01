@@ -100,8 +100,12 @@ condition de publier vos modifications.
 
 Un abonnement SNCF pour les 16-27 ans qui donne accès à un nombre illimité de trajets sur les
 trains éligibles, dans la limite des places réservées à l'abonnement. Ces places sont
-contingentées : un train peut circuler sans être ouvert à TGVmax. C'est ce contingent que
+contingentées : un train peut circuler sans être ouvert à l'abonnement. C'est ce contingent que
 Trainquillou rend visible.
+
+La SNCF a renommé l'offre **MAX JEUNE** en 2023. « TGVmax » reste le nom sous lequel la plupart
+des abonnés la connaissent, et celui du dataset open data : les deux termes cohabitent donc dans
+l'interface et dans les métadonnées, sans en privilégier un.
 
 ### Trainquillou réserve-t-il mes billets ?
 
@@ -128,9 +132,12 @@ service gratuit, sans but lucratif.
 
 ### Mes visites sont-elles suivies ?
 
-L'instance officielle mesure son audience avec [Rybbit](https://rybbit.io) : sans cookie, sans
-identifiant persistant, sans profil publicitaire, données hébergées dans l'UE. Aucun bandeau de
-consentement n'est nécessaire, faute de donnée personnelle collectée.
+L'instance officielle mesure son audience avec [Rybbit](https://rybbit.com) : sans cookie, sans
+identifiant persistant, sans profil publicitaire, et sans stockage des adresses IP d'après sa
+[politique de confidentialité](https://rybbit.com/privacy). Aucun bandeau de consentement n'est
+nécessaire, faute de donnée personnelle collectée.
+
+Le site lui-même tourne sur un VPS OVH à Gravelines (Nord, France), sans CDN intermédiaire.
 
 Rien de tout cela n'est actif dans le code que vous clonez : la mesure ne s'active que si vous
 fournissez votre propre identifiant au build (voir ci-dessous). Une instance auto-hébergée
