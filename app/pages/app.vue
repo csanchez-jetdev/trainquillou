@@ -52,8 +52,11 @@ onMounted(() => {
   isNarrow.value = mq.matches
   mq.addEventListener('change', (e) => (isNarrow.value = e.matches))
 })
-watch([result, () => itinerary.route.value], () => {
-  if (isNarrow.value) formOpen.value = false
+// Ne replier que sur une recherche qui a effectivement abouti : `useItinerary` étant
+// `server: false`, son résultat passe de `undefined` à `null` au montage, et ce seul
+// changement suffisait à replier un formulaire qui n'avait encore rien à résumer.
+watch([result, () => itinerary.route.value], ([found, foundRoute]) => {
+  if (isNarrow.value && (found || foundRoute)) formOpen.value = false
 })
 function onSearch(params: Parameters<typeof search>[0]) {
   search(params)
@@ -74,6 +77,12 @@ const summary = computed(() => {
   })
   return `${where} · ${when}`
 })
+
+/**
+ * État replié, dérivé plutôt que déclaré : il exige un résumé à afficher, ce qui garantit
+ * qu'un des deux affichages est toujours visible et jamais une colonne de recherche vide.
+ */
+const collapsed = computed(() => isNarrow.value && !formOpen.value && Boolean(summary.value))
 
 async function onShowReturns(destLabel: string) {
   if (!result.value) return
@@ -119,12 +128,50 @@ useHead({
         <img src="/logo-mark.png" alt="Trainquillou" class="h-8 w-8 object-contain">
         Trainquillou
       </NuxtLink>
+      <GithubLink class="text-rail-soft transition hover:text-rail" />
     </header>
 
-    <!-- Corps : sidebar + carte (empilés sur mobile, côte à côte sur desktop) -->
-    <div class="flex min-h-0 flex-1 flex-col md:flex-row">
-      <!-- Carte : en haut sur mobile, à droite sur desktop -->
-      <div class="relative order-1 h-[38vh] shrink-0 md:order-2 md:h-auto md:flex-1">
+    <!--
+      Trois blocs, deux dispositions. Sur écran étroit : recherche, carte, résultats —
+      la recherche d'abord, puisque c'est par elle qu'on commence et qu'elle se replie
+      ensuite en résumé pour laisser la hauteur aux résultats. Sur desktop : recherche et
+      résultats en colonne à gauche, carte à droite sur toute la hauteur.
+
+      Une grille plutôt qu'un flex ordonné : la carte doit s'intercaler entre les deux
+      autres blocs sur mobile et les couvrir tous les deux sur desktop, ce qu'un simple
+      changement d'ordre ne sait pas faire.
+    -->
+    <div class="grid min-h-0 flex-1 grid-rows-[auto_32dvh_minmax(0,1fr)] md:grid-cols-[24rem_minmax(0,1fr)] md:grid-rows-[auto_minmax(0,1fr)]">
+      <!-- Recherche. `relative z-10` : les suggestions de gare doivent passer par-dessus
+           la carte, qui est son voisin immédiat sur mobile. -->
+      <div class="relative z-10 border-b border-slate-100 bg-white p-3 md:col-start-1 md:row-start-1 md:border-r md:border-slate-200">
+        <!-- Formulaire replié : résumé cliquable, écran étroit uniquement -->
+        <button
+          v-if="collapsed"
+          type="button"
+          data-test="expand-search"
+          class="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:border-accent"
+          @click="formOpen = true"
+        >
+          <span class="min-w-0 flex-1 truncate text-sm font-semibold text-rail">{{ summary }}</span>
+          <span class="shrink-0 text-xs font-medium text-accent-strong">Modifier</span>
+        </button>
+
+        <SearchBar
+          v-show="!collapsed"
+          :initial-origin="origin"
+          :initial-destination="itinerary.to.value"
+          :initial-date="date"
+          :initial-date-to="dateTo"
+          :initial-stops="itinerary.stops.value"
+          :initial-mode="mode"
+          :loading="searchLoading"
+          @search="onSearch"
+        />
+      </div>
+
+      <!-- Carte -->
+      <div class="relative md:col-start-2 md:row-start-1 md:row-end-3">
         <MapView
           class="absolute inset-0"
           :result="isRoute ? null : result"
@@ -140,34 +187,8 @@ useHead({
         />
       </div>
 
-      <!-- Panneau latéral : recherche + résultats -->
-      <aside class="order-2 flex min-h-0 flex-1 flex-col bg-white md:order-1 md:w-[24rem] md:flex-none md:border-r md:border-slate-200">
-        <div class="shrink-0 border-b border-slate-100 p-3">
-          <!-- Formulaire replié : résumé cliquable, écran étroit uniquement -->
-          <button
-            v-if="isNarrow && !formOpen && summary"
-            type="button"
-            data-test="expand-search"
-            class="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:border-accent"
-            @click="formOpen = true"
-          >
-            <span class="min-w-0 flex-1 truncate text-sm font-semibold text-rail">{{ summary }}</span>
-            <span class="shrink-0 text-xs font-medium text-accent-strong">Modifier</span>
-          </button>
-
-          <SearchBar
-            v-show="formOpen || !isNarrow"
-            :initial-origin="origin"
-            :initial-destination="itinerary.to.value"
-            :initial-date="date"
-            :initial-date-to="dateTo"
-            :initial-stops="itinerary.stops.value"
-            :initial-mode="mode"
-            :loading="searchLoading"
-            @search="onSearch"
-          />
-        </div>
-
+      <!-- Résultats -->
+      <aside class="flex min-h-0 flex-col bg-white md:col-start-1 md:row-start-2 md:border-r md:border-slate-200">
         <div class="min-h-0 flex-1 overflow-hidden px-3 py-2">
           <ClientOnly v-if="isRoute">
             <RoutePanel
