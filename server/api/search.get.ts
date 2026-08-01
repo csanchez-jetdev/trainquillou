@@ -12,6 +12,7 @@ import { clampToWindow, lastBookableISO } from '~~/shared/window'
 import { getCoordsIndex } from '../utils/coords'
 import { lookupPopularity } from '../utils/popularity'
 import { lookupBookingSlug } from '../utils/booking'
+import { parseDate, parseStation } from '../utils/params'
 import type { SearchResult, SearchMode } from '~~/shared/types'
 
 const MODES: SearchMode[] = ['from', 'to', 'range', 'roundtrip']
@@ -22,21 +23,26 @@ const NEEDS_SECOND_DATE: SearchMode[] = ['range', 'roundtrip']
 export default defineCachedEventHandler(
   async (event): Promise<SearchResult> => {
     const q = getQuery(event) as { origin?: string; date?: string; dateTo?: string; mode?: SearchMode }
-    const { origin, date } = q
+    const origin = parseStation(q.origin)
+    const date = parseDate(q.date)
+    const requestedTo = parseDate(q.dateTo)
     const mode: SearchMode = MODES.includes(q.mode as SearchMode) ? (q.mode as SearchMode) : 'from'
 
     if (!origin || !date) {
-      throw createError({ statusCode: 400, statusMessage: 'origin and date are required' })
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'origin (station label) and date (YYYY-MM-DD) are required',
+      })
     }
-    if (NEEDS_SECOND_DATE.includes(mode) && !q.dateTo) {
+    if (NEEDS_SECOND_DATE.includes(mode) && !requestedTo) {
       throw createError({
         statusCode: 400,
         statusMessage: mode === 'roundtrip'
-          ? 'dateTo (return date) is required in roundtrip mode'
-          : 'dateTo is required in range mode',
+          ? 'dateTo (return date, YYYY-MM-DD) is required in roundtrip mode'
+          : 'dateTo (YYYY-MM-DD) is required in range mode',
       })
     }
-    if (mode === 'roundtrip' && q.dateTo! < date) {
+    if (mode === 'roundtrip' && requestedTo! < date) {
       throw createError({ statusCode: 400, statusMessage: 'return date must not precede outbound date' })
     }
 
@@ -48,7 +54,7 @@ export default defineCachedEventHandler(
         statusMessage: `date is beyond the 30-day booking window (last bookable: ${lastBookableISO()})`,
       })
     }
-    const dateTo = q.dateTo ? clampToWindow(q.dateTo) : undefined
+    const dateTo = requestedTo ? clampToWindow(requestedTo) : undefined
 
     const index = await getCoordsIndex()
 

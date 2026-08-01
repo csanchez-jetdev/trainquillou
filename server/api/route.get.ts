@@ -1,15 +1,21 @@
 import { findItineraries, feasibleNextDays } from '../utils/routing'
 import { lookupCoords, stationKey } from '../utils/stations'
 import { getCoordsIndex } from '../utils/coords'
+import { parseDate, parseStation } from '../utils/params'
 import { lastBookableISO } from '~~/shared/window'
 import type { RouteResult } from '~~/shared/types'
 
 export default defineCachedEventHandler(
   async (event): Promise<RouteResult & { truncated: boolean }> => {
     const q = getQuery(event) as { from?: string; to?: string; date?: string; stops?: string }
-    const { from, to, date } = q
+    const from = parseStation(q.from)
+    const to = parseStation(q.to)
+    const date = parseDate(q.date)
     if (!from || !to || !date) {
-      throw createError({ statusCode: 400, statusMessage: 'from, to and date are required' })
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'from and to (station labels) and date (YYYY-MM-DD) are required',
+      })
     }
     // Without this guard, the search looks for connections between a city and itself —
     // dozens of upstream calls for an empty question.

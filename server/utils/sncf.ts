@@ -7,6 +7,8 @@ const PAGE = 100
 const MAX_OFFSET = 10000
 /** Pages requested at once. Bounded: the upstream throttles anonymous callers. */
 const CONCURRENCY = 4
+/** Per-page deadline. Without it a stalled upstream connection pins ours until the TCP timeout. */
+const TIMEOUT_MS = 10_000
 
 export interface RawRecord {
   date: string
@@ -40,7 +42,7 @@ async function fetchRecords(params: Record<string, string | string[]>): Promise<
     }
     url.searchParams.set('limit', String(PAGE))
     url.searchParams.set('offset', String(offset))
-    return $fetch<RecordsResponse>(url.toString())
+    return $fetch<RecordsResponse>(url.toString(), { timeout: TIMEOUT_MS })
   }
 
   // The first response carries `total_count`, so the remaining offsets are known up front and
@@ -171,7 +173,7 @@ export async function fetchStationLabels(): Promise<string[]> {
   for (const field of ['origine', 'destination']) {
     const res = await $fetch<{ results: Array<Record<string, string | null>> }>(
       `${BASE}/records`,
-      { query: { select: field, group_by: field, limit: -1 } },
+      { query: { select: field, group_by: field, limit: -1 }, timeout: TIMEOUT_MS },
     )
     for (const row of res.results || []) {
       const value = row[field]
