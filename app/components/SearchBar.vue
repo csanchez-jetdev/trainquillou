@@ -151,109 +151,118 @@ function submit() {
 
 <template>
   <form class="w-full" @submit.prevent="submit">
-    <!-- Les deux gares, avec inversion du sens -->
-    <div class="flex gap-2">
-      <div class="flex-1 space-y-2">
-        <StationInput
-          v-model="from"
-          label="Depuis"
-          placeholder="Paris, Lyon, Nantes…"
-          test-id="input-from"
-        />
-        <StationInput
-          v-model="to"
-          label="Vers"
-          placeholder="N'importe où"
-          test-id="input-to"
-        />
-      </div>
-      <div class="flex shrink-0 items-center">
-        <button
-          type="button"
-          data-test="swap"
-          title="Inverser le sens"
-          aria-label="Inverser le sens de la recherche"
-          class="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-rail-soft transition hover:border-accent hover:text-accent-strong"
-          @click="swap"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" />
+    <!-- Le trajet : un seul objet, pas deux champs juxtaposés. Le bouton d'inversion se
+         pose sur le séparateur qu'il fait pivoter, à l'intérieur du cadre — dehors, il
+         créait une troisième marge droite dans la colonne. -->
+    <div class="relative rounded-xl border border-slate-200 bg-white">
+      <StationInput
+        v-model="from"
+        label="Depuis"
+        placeholder="Paris, Lyon, Nantes…"
+        test-id="input-from"
+      />
+      <div class="mx-3 h-px bg-slate-100" />
+      <StationInput
+        v-model="to"
+        label="Vers"
+        placeholder="N'importe où"
+        test-id="input-to"
+      />
+      <button
+        type="button"
+        data-test="swap"
+        title="Inverser le sens"
+        aria-label="Inverser le sens de la recherche"
+        class="absolute right-2.5 top-1/2 z-10 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-rail-soft shadow-sm transition hover:border-accent hover:text-accent-strong"
+        @click="swap"
+      >
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Quand : même traitement, un cadre unique découpé en cellules -->
+    <div class="mt-2 rounded-xl border border-slate-200 bg-white">
+      <div class="grid grid-cols-2">
+        <div class="px-3 py-2">
+          <span class="block text-xs font-medium text-rail-soft">{{ firstDateLabel }}</span>
+          <input
+            v-model="date"
+            type="date"
+            :min="today"
+            class="mt-0.5 w-full bg-transparent text-[15px] font-medium text-rail outline-none"
+          >
+        </div>
+        <div class="relative border-l border-slate-100 px-3 py-2">
+          <label for="tq-date-kind" class="block text-xs font-medium text-rail-soft">Voyage</label>
+          <select
+            id="tq-date-kind"
+            v-model="dateKind"
+            data-test="date-kind"
+            class="mt-0.5 w-full appearance-none bg-transparent pr-5 text-[15px] font-medium text-rail outline-none disabled:text-rail-soft"
+            :disabled="!canPickDateKind"
+          >
+            <option value="single">Aller simple</option>
+            <option value="roundtrip">Aller-retour</option>
+            <option value="range">Plusieurs jours</option>
+          </select>
+          <svg class="pointer-events-none absolute bottom-3 right-3 h-3.5 w-3.5 text-rail-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6" />
           </svg>
-        </button>
+        </div>
       </div>
-    </div>
 
-    <!-- Quand : une date, et la façon de l'interpréter -->
-    <div class="mt-3 flex gap-2">
-      <div class="flex-1">
-        <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-rail-soft">
-          {{ firstDateLabel }}
-        </label>
-        <input
-          v-model="date"
-          type="date"
-          :min="today"
-          class="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
-        >
+      <!-- Ces lignes n'ont qu'une cellule, mais gardent la grille à deux colonnes : sinon
+           leur champ s'étire sur toute la largeur et son icône de calendrier ne tombe plus
+           en face de celle de la ligne du dessus. -->
+      <div v-if="hasSecondDate" class="grid grid-cols-2 border-t border-slate-100">
+        <div class="px-3 py-2">
+          <span class="block text-xs font-medium text-rail-soft">
+            {{ dateKind === 'roundtrip' ? 'Retour' : 'Au' }}
+          </span>
+          <input
+            v-model="dateTo"
+            type="date"
+            data-test="date-to"
+            :min="date || today"
+            class="mt-0.5 w-full bg-transparent text-[15px] font-medium text-rail outline-none"
+          >
+        </div>
       </div>
-      <div class="flex-1">
-        <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-rail-soft">
-          Voyage
-        </label>
-        <select
-          v-model="dateKind"
-          data-test="date-kind"
-          class="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:bg-slate-50 disabled:text-rail-soft"
-          :disabled="!canPickDateKind"
-        >
-          <option value="single">Aller simple</option>
-          <option value="roundtrip">Aller-retour</option>
-          <option value="range">Plusieurs jours</option>
-        </select>
-      </div>
-    </div>
 
-    <div v-if="hasSecondDate || mode === 'route'" class="mt-3 flex gap-2">
-      <div v-if="hasSecondDate" class="flex-1">
-        <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-rail-soft">
-          {{ dateKind === 'roundtrip' ? 'Retour' : 'Au' }}
-        </label>
-        <input
-          v-model="dateTo"
-          type="date"
-          data-test="date-to"
-          :min="date || today"
-          class="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
-        >
-      </div>
-      <div v-if="mode === 'route'" class="flex-1">
-        <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-rail-soft">
-          Correspondances
-        </label>
-        <select
-          v-model="stops"
-          data-test="stops-select"
-          class="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
-        >
-          <option value="0">Direct</option>
-          <option value="1">≤ 1</option>
-          <option value="2">≤ 2</option>
-          <option value="3">≤ 3 (plus lent)</option>
-        </select>
+      <div v-if="mode === 'route'" class="grid grid-cols-2 border-t border-slate-100">
+        <div class="relative px-3 py-2">
+          <label for="tq-stops" class="block text-xs font-medium text-rail-soft">Correspondances</label>
+          <select
+            id="tq-stops"
+            v-model="stops"
+            data-test="stops-select"
+            class="mt-0.5 w-full appearance-none bg-transparent pr-5 text-[15px] font-medium text-rail outline-none"
+          >
+            <option value="0">Direct</option>
+            <option value="1">≤ 1</option>
+            <option value="2">≤ 2</option>
+            <option value="3">≤ 3 (plus lent)</option>
+          </select>
+          <svg class="pointer-events-none absolute bottom-3 right-3 h-3.5 w-3.5 text-rail-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
       </div>
     </div>
 
     <!-- Ce que la recherche va faire, en clair : le mode n'est plus nommé, il doit être dit. -->
-    <p data-test="search-hint" class="mt-2.5 text-xs leading-snug text-rail-soft">
+    <p data-test="search-hint" class="mt-2 px-0.5 text-xs leading-snug text-rail-soft">
       {{ hint }}
     </p>
 
-    <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="mt-2 px-0.5 text-sm text-red-600">{{ error }}</p>
 
     <button
       type="submit"
       :disabled="loading"
-      class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-accent-strong px-4 py-2.5 font-semibold text-white shadow-sm shadow-accent/30 transition hover:shadow-md hover:brightness-105 disabled:opacity-70"
+      class="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
     >
       <Spinner v-if="loading" :size="16" />
       <span>{{ loading ? 'Recherche…' : submitLabel }}</span>

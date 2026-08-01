@@ -104,9 +104,13 @@ function clearFilters() {
 const hubName = computed(() => (props.result ? prettyLabel(props.result.origin.label) : ''))
 const noun = computed(() => (props.result?.mode === 'to' ? 'origine' : 'destination'))
 
-const CHIP = 'rounded-full px-2 py-0.5 text-xs font-medium transition'
-const CHIP_ON = 'bg-accent text-white'
-const CHIP_OFF = 'bg-slate-100 text-rail-soft hover:bg-slate-200'
+// Contour sur fond blanc au repos : un aplat gris se lit comme une étiquette morte,
+// pas comme une option qu'on peut activer.
+// Six pastilles doivent tenir sur une seule ligne dans 360 px : au-delà, « Soir » se
+// retrouve orphelin sur une deuxième rangée.
+const CHIP = 'rounded-full border px-2 py-1 text-xs font-medium transition'
+const CHIP_ON = 'border-accent bg-accent text-white'
+const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-300 hover:text-rail'
 </script>
 
 <template>
@@ -121,19 +125,38 @@ const CHIP_OFF = 'bg-slate-100 text-rail-soft hover:bg-slate-200'
     </div>
 
     <template v-else-if="result">
-      <p class="px-0.5 text-sm text-rail-soft">
-        <strong class="text-rail">{{ all.length }}</strong>
-        {{ noun }}<template v-if="all.length > 1">s</template>
-        <template v-if="result.mode === 'to'"> vers </template>
-        <template v-else> depuis </template>
-        <strong class="text-rail">{{ hubName }}</strong>
-        <template v-if="isFiltering">
-          <span class="text-slate-300"> · </span>{{ filtered.length }} affichée<template v-if="filtered.length > 1">s</template>
-        </template>
-      </p>
+      <!-- Le tri partage la ligne du décompte, qui a de la place : une rangée de
+           contrôles en moins au-dessus d'une liste qu'on veut voir. -->
+      <div class="flex items-baseline gap-2 px-0.5">
+        <p class="min-w-0 flex-1 truncate text-sm text-rail-soft">
+          <strong class="text-rail">{{ all.length }}</strong>
+          {{ noun }}<template v-if="all.length > 1">s</template>
+          <template v-if="result.mode === 'to'"> vers </template>
+          <template v-else> depuis </template>
+          <strong class="text-rail">{{ hubName }}</strong>
+          <template v-if="isFiltering">
+            <span class="text-slate-300"> · </span>{{ filtered.length }} affichée<template v-if="filtered.length > 1">s</template>
+          </template>
+        </p>
+        <div v-if="all.length > 1" class="relative shrink-0">
+          <select
+            v-model="sortBy"
+            data-test="sort"
+            aria-label="Trier les résultats"
+            class="cursor-pointer appearance-none rounded-md bg-transparent py-0.5 pl-1.5 pr-5 text-xs font-medium text-rail-soft outline-none transition hover:text-rail"
+          >
+            <option value="default">{{ isRange ? 'Jours' : 'A → Z' }}</option>
+            <option v-if="!isRange" value="duration">Durée</option>
+            <option value="popularity">Notoriété</option>
+          </select>
+          <svg class="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-rail-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+      </div>
 
       <!-- Filtres : sur 130 destinations, restreindre bat n'importe quel tri -->
-      <div v-if="all.length > 1" class="flex flex-wrap items-center gap-1 px-0.5">
+      <div v-if="all.length > 1" class="flex flex-wrap items-center gap-1.5 px-0.5">
         <template v-if="isRange">
           <button
             v-for="n in DAY_THRESHOLDS"
@@ -156,7 +179,6 @@ const CHIP_OFF = 'bg-slate-100 text-rail-soft hover:bg-slate-200'
           >
             {{ d.label }}
           </button>
-          <span class="mx-0.5 h-4 w-px bg-slate-200" />
           <button
             v-for="p in PERIODS"
             :key="p.key"
@@ -178,38 +200,9 @@ const CHIP_OFF = 'bg-slate-100 text-rail-soft hover:bg-slate-200'
         </button>
       </div>
 
-      <div v-if="all.length > 1" class="flex items-center gap-1.5 px-0.5 text-xs text-rail-soft">
-        <span>Trier :</span>
-        <button
-          type="button"
-          :class="sortBy === 'default' ? 'font-semibold text-accent-strong' : 'hover:text-rail'"
-          @click="sortBy = 'default'"
-        >
-          {{ isRange ? 'jours' : 'A→Z' }}
-        </button>
-        <template v-if="!isRange">
-          <span class="text-slate-300">·</span>
-          <button
-            type="button"
-            data-test="sort-duration"
-            :class="sortBy === 'duration' ? 'font-semibold text-accent-strong' : 'hover:text-rail'"
-            @click="sortBy = 'duration'"
-          >
-            durée
-          </button>
-        </template>
-        <span class="text-slate-300">·</span>
-        <button
-          type="button"
-          data-test="sort-popularity"
-          :class="sortBy === 'popularity' ? 'font-semibold text-accent-strong' : 'hover:text-rail'"
-          @click="sortBy = 'popularity'"
-        >
-          notoriété ★
-        </button>
-      </div>
-
-      <ul v-if="visible.length" class="flex flex-col gap-1.5 overflow-auto pb-2 pr-1">
+      <!-- Pleine largeur, séparées par des filets : 74 rectangles bordés faisaient une
+           échelle. La marge négative annule le padding de la colonne. -->
+      <ul v-if="visible.length" class="-mx-3 divide-y divide-slate-100 overflow-auto border-t border-slate-100">
         <DestinationCard
           v-for="d in visible"
           :key="d.label"

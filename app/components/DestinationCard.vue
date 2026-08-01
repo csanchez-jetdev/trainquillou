@@ -40,10 +40,8 @@ function formatDate(iso: string): string {
       data-test="dest-card"
       :aria-pressed="selected"
       :class="[
-        'w-full rounded-lg border px-3 py-2 text-left transition',
-        selected
-          ? 'border-accent bg-accent/5 ring-1 ring-accent/40'
-          : 'border-slate-200 bg-white hover:border-accent/60 hover:bg-slate-50',
+        'relative w-full px-3 py-2.5 text-left transition',
+        selected ? 'bg-accent/[.07]' : 'hover:bg-slate-50',
       ]"
       @click="emit('select', destination.label)"
       @mouseenter="emit('hover', destination.label)"
@@ -51,23 +49,28 @@ function formatDate(iso: string): string {
       @focus="emit('hover', destination.label)"
       @blur="emit('hover', null)"
     >
+      <!-- Barre d'accent plutôt qu'un liseré tout autour : lisible du coin de l'œil en
+           faisant défiler, sans redessiner un cadre autour de chaque ligne. -->
+      <span v-if="selected" class="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+
       <div class="flex items-baseline gap-2">
         <span class="min-w-0 flex-1 truncate font-semibold text-rail">{{ name }}</span>
-        <span v-if="pop.tier > 0" :title="pop.label" class="shrink-0 text-[11px] text-amber-500">
+        <span v-if="pop.tier > 0" :title="pop.label" class="shrink-0 text-[10px] text-amber-400">
           {{ pop.stars }}
         </span>
         <!-- Le chiffre sur lequel on tranche vraiment : Lyon et Perpignan se ressemblent
-             dans une liste, 1h56 et 5h07 ne se ressemblent pas. -->
+             dans une liste, 1h56 et 5h07 ne se ressemblent pas. En navy, pas en teal :
+             la couleur d'accent est réservée à l'état interactif. -->
         <span
           v-if="fastest"
           data-test="card-duration"
-          class="shrink-0 text-sm font-semibold tabular-nums text-accent-strong"
+          class="shrink-0 text-sm font-bold tabular-nums text-rail"
         >
           {{ formatDuration(tripDurationMin(fastest)) }}
         </span>
         <span
           v-else-if="mode === 'range'"
-          class="shrink-0 rounded-full bg-accent/10 px-1.5 text-[11px] font-semibold text-accent-strong"
+          class="shrink-0 text-sm font-bold tabular-nums text-rail"
         >
           {{ days.length }} j
         </span>
