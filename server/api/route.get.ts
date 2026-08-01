@@ -1,6 +1,7 @@
 import { findItineraries, feasibleNextDays } from '../utils/routing'
-import { lookupCoords } from '../utils/stations'
+import { lookupCoords, stationKey } from '../utils/stations'
 import { getCoordsIndex } from '../utils/coords'
+import { lastBookableISO } from '~~/shared/window'
 import type { RouteResult } from '~~/shared/types'
 
 export default defineCachedEventHandler(
@@ -9,6 +10,17 @@ export default defineCachedEventHandler(
     const { from, to, date } = q
     if (!from || !to || !date) {
       throw createError({ statusCode: 400, statusMessage: 'from, to and date are required' })
+    }
+    // Sans ce garde-fou, l'exploration part chercher des correspondances entre une ville
+    // et elle-même — jusqu'à quelques dizaines d'appels amont pour une question vide.
+    if (stationKey(from) === stationKey(to)) {
+      throw createError({ statusCode: 400, statusMessage: 'from and to must differ' })
+    }
+    if (date > lastBookableISO()) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `date is beyond the 30-day booking window (last bookable: ${lastBookableISO()})`,
+      })
     }
     const maxStops = Math.max(0, Math.min(3, Number(q.stops ?? 2) || 0))
 

@@ -18,9 +18,17 @@ logs
 .fleet
 .idea
 
-# Réglages locaux d'outils d'assistance (jamais partagés)
-.claude/settings.local.json
+# Outillage d'assistance : local, jamais partagé
+CLAUDE.md
+AGENTS.md
+.agents/
+.claude/
+.cursor/
+skills-lock.json
 .playwright-mcp
+
+# Déploiement : propre à l'hébergeur, contient des réglages nominatifs
+infra/
 
 # Cache local des scripts de build (régénérable)
 scripts/.booking-cache.json

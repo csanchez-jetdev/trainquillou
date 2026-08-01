@@ -140,6 +140,35 @@ des statuts fiables). SNCF Connect protège son site par un défi anti-bot et ne
 vérifié automatiquement ; on réutilise le slug validé, les deux sites employant les mêmes noms de
 ville. 307 des 341 gares sont couvertes, les autres n'affichent simplement pas de lien.
 
+## La fenêtre de 30 jours
+
+Les places à 0 € n'ouvrent que 30 jours avant le départ. Ce n'est pas une limite qu'on
+s'impose : le dataset s'appelle « Disponibilité **à 30 jours** de places MAX JEUNE et MAX
+SENIOR ouvertes à la réservation » et ne contient rien au-delà — un `order_by=date desc`
+le confirme, sa date maximale est toujours J+30.
+
+Une date hors fenêtre renvoyait donc zéro résultat, ce qui se lit comme une panne plutôt
+que comme une règle du produit. `shared/window.ts` porte la borne, utilisée des deux côtés :
+
+- le sélecteur de date la pose en `max`, et une note explique la règle sous le formulaire ;
+- `/api/search` et `/api/route` refusent au-delà (400), et une plage débordante est **bornée**
+  plutôt que refusée — sans quoi `mode=range` déclencherait un appel amont par jour dans le
+  vide, jusqu'à une centaine de requêtes inutiles sur l'API publique.
+
+`todayISO()` calcule la date locale et non `toISOString()` : en France l'été, entre minuit
+et 2 h du matin, la date UTC désigne encore la veille, et le champ proposerait un jour passé.
+
+## Une ville n'est pas sa propre destination
+
+Le dataset relie une ville à elle-même quand elle a plusieurs gares : Lyon Part-Dieu →
+Lyon Perrache portent tous deux le libellé `LYON (intramuros)`. C'est un vrai train, mais
+chercher où aller depuis Lyon pour s'entendre répondre « Lyon, 8 min » n'a pas de sens.
+
+`/api/search` écarte donc les destinations dont la clé normalisée égale celle du pivot, dans
+les quatre modes. `/api/route` refuse une origine égale à sa destination, sans quoi
+l'exploration part chercher des correspondances entre une ville et elle-même. Côté
+formulaire, chaque champ gare exclut la valeur de l'autre de ses suggestions.
+
 ## Le filtre métier essentiel
 
 Le dataset `tgvmax` liste **tous** les trains, pas seulement ceux ouverts à la réservation

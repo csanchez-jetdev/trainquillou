@@ -7,7 +7,8 @@ import {
   groupReservableByDate,
   groupRoundTrip,
 } from '../utils/sncf'
-import { lookupCoords } from '../utils/stations'
+import { lookupCoords, stationKey } from '../utils/stations'
+import { clampToWindow, lastBookableISO } from '~~/shared/window'
 import { getCoordsIndex } from '../utils/coords'
 import { lookupPopularity } from '../utils/popularity'
 import { lookupBookingSlug } from '../utils/booking'
@@ -39,22 +40,40 @@ export default defineCachedEventHandler(
       throw createError({ statusCode: 400, statusMessage: 'return date must not precede outbound date' })
     }
 
+    // Les places à 0 € n'ouvrent que 30 jours avant le départ : au-delà, le dataset SNCF
+    // est vide. Une plage non bornée demanderait un appel amont par jour pour rien —
+    // jusqu'à cent requêtes inutiles sur l'API publique.
+    if (date > lastBookableISO()) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `date is beyond the 30-day booking window (last bookable: ${lastBookableISO()})`,
+      })
+    }
+    const dateTo = q.dateTo ? clampToWindow(q.dateTo) : undefined
+
     const index = await getCoordsIndex()
 
     let destinations
     if (mode === 'to') {
       destinations = groupReservableByOrigin(await fetchInbound(origin, date))
     } else if (mode === 'range') {
-      destinations = groupReservableByDate(await fetchOutboundRange(origin, date, q.dateTo!))
+      destinations = groupReservableByDate(await fetchOutboundRange(origin, date, dateTo!))
     } else if (mode === 'roundtrip') {
       const [outbound, inbound] = await Promise.all([
         fetchOutbound(origin, date),
-        fetchInbound(origin, q.dateTo!),
+        fetchInbound(origin, dateTo!),
       ])
       destinations = groupRoundTrip(outbound, inbound)
     } else {
       destinations = groupReservableTrains(await fetchOutbound(origin, date))
     }
+
+    // Le dataset relie une ville à elle-même quand elle a plusieurs gares : Lyon Part-Dieu
+    // → Lyon Perrache portent tous deux le libellé « LYON (intramuros) ». C'est un vrai
+    // train, mais pas une destination : personne ne cherche où aller depuis Lyon pour
+    // s'entendre répondre Lyon.
+    const hubKey = stationKey(origin)
+    destinations = destinations.filter((d) => stationKey(d.label) !== hubKey)
 
     const enriched = await Promise.all(
       destinations.map(async (d) => ({
@@ -72,7 +91,8 @@ export default defineCachedEventHandler(
         slug: lookupBookingSlug(origin),
       },
       date,
-      ...(NEEDS_SECOND_DATE.includes(mode) ? { dateTo: q.dateTo } : {}),
+      // La date bornée, pas celle demandée : le front doit refléter la plage réellement explorée.
+      ...(NEEDS_SECOND_DATE.includes(mode) ? { dateTo } : {}),
       mode,
       destinations: enriched,
     }

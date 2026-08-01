@@ -11,7 +11,7 @@ Gratuit, sans publicité, sans compte, sans traceur. Open source sous AGPL-3.0.
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-14b8b0)](LICENSE)
 [![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white)](https://nuxt.com)
 [![Données open data SNCF](https://img.shields.io/badge/données-open%20data%20SNCF-0b1f3a)](https://data.sncf.com/explore/dataset/tgvmax/)
-[![Tests](https://img.shields.io/badge/tests-73%20passants-14b8b0)](test/)
+[![Tests](https://img.shields.io/badge/tests-78%20passants-14b8b0)](test/)
 
 </div>
 
@@ -66,7 +66,7 @@ Aucune clé d'API, aucun compte, aucun fichier `.env` : l'open data SNCF est ouv
 référentiel des gares est embarqué dans le dépôt.
 
 ```bash
-pnpm test         # 73 tests, sans accès réseau
+pnpm test         # 78 tests, sans accès réseau
 pnpm build        # build de production
 pnpm preview      # prévisualiser le build
 ```
@@ -100,6 +100,14 @@ Trainquillou rend visible.
 
 Non. Il montre où il reste des places et renvoie vers SNCF Connect ou Trainline pour la
 réservation. Il n'est pas affilié à la SNCF.
+
+### Pourquoi ne puis-je pas chercher au-delà d'un mois ?
+
+Parce que les places à 0 € n'ouvrent que **30 jours avant le départ**. Ce n'est pas une
+limite de Trainquillou : le jeu de données SNCF s'appelle littéralement « Disponibilité à
+30 jours de places MAX JEUNE et MAX SENIOR ouvertes à la réservation » et ne contient rien
+au-delà. Le sélecteur de date s'arrête donc à cette échéance plutôt que de renvoyer une
+page vide qui ressemblerait à une panne.
 
 ### Les disponibilités sont-elles en temps réel ?
 

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { SearchMode } from '~~/shared/types'
+import { todayISO, lastBookableISO, BOOKING_WINDOW_DAYS } from '~~/shared/window'
+import { cleanString } from '~~/server/utils/normalize'
 
 type BarMode = SearchMode | 'route'
 /** Comment les dates sont choisies. Le mode de recherche en découle, il n'est plus choisi. */
@@ -42,10 +44,19 @@ const error = ref('')
   if (m === 'range') dateKind.value = 'range'
 }
 
-const today = new Date().toISOString().slice(0, 10)
+// Les places à 0 € n'ouvrent que 30 jours avant le départ : au-delà, le jeu de données
+// SNCF est vide et une recherche ne renverrait rien, ce qui se lirait comme une panne.
+// Le sélecteur natif refuse donc ces dates plutôt que de laisser aller dans le mur.
+const today = todayISO()
+const lastBookable = lastBookableISO()
 
 const hasFrom = computed(() => Boolean(from.value.trim()))
 const hasTo = computed(() => Boolean(to.value.trim()))
+
+/** Aller d'une ville vers elle-même : le dataset le permet (Part-Dieu → Perrache), pas nous. */
+const sameStation = computed(
+  () => hasFrom.value && hasTo.value && cleanString(from.value) === cleanString(to.value),
+)
 
 /**
  * Intention reçue de l'URL (`/app?mode=to`), tant qu'aucune gare n'est saisie : un
@@ -90,6 +101,13 @@ const hint = computed(() => {
   return HINTS[mode.value]
 })
 
+function humanDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'long',
+  })
+}
+
 const SUBMIT_LABELS: Record<BarMode, string> = {
   from: 'Voir les destinations',
   to: 'D\'où peut-on venir ?',
@@ -112,6 +130,10 @@ function swap() {
 }
 
 function submit() {
+  if (sameStation.value) {
+    error.value = 'Les deux gares sont identiques.'
+    return
+  }
   if (mode.value === 'route' && (!hasFrom.value || !hasTo.value)) {
     error.value = 'Indiquez la gare de départ et la gare d\'arrivée.'
     return
@@ -124,6 +146,11 @@ function submit() {
     error.value = 'Choisissez une date.'
     return
   }
+  // Un lien partagé peut porter une date sortie de la fenêtre depuis son envoi.
+  if (date.value < today || date.value > lastBookable) {
+    error.value = `Les places ne sont réservables que jusqu'au ${humanDate(lastBookable)}.`
+    return
+  }
   if (hasSecondDate.value) {
     if (!dateTo.value) {
       error.value = dateKind.value === 'roundtrip' ? 'Choisissez une date de retour.' : 'Choisissez une date de fin.'
@@ -133,6 +160,10 @@ function submit() {
       error.value = dateKind.value === 'roundtrip'
         ? 'Le retour ne peut pas précéder l\'aller.'
         : 'La date de fin doit suivre la date de début.'
+      return
+    }
+    if (dateTo.value > lastBookable) {
+      error.value = `Les places ne sont réservables que jusqu'au ${humanDate(lastBookable)}.`
       return
     }
   }
@@ -160,6 +191,7 @@ function submit() {
         label="Depuis"
         placeholder="Paris, Lyon, Nantes…"
         test-id="input-from"
+        :exclude="to"
       />
       <div class="mx-3 h-px bg-slate-100" />
       <StationInput
@@ -167,6 +199,7 @@ function submit() {
         label="Vers"
         placeholder="N'importe où"
         test-id="input-to"
+        :exclude="from"
       />
       <button
         type="button"
@@ -191,6 +224,7 @@ function submit() {
             v-model="date"
             type="date"
             :min="today"
+            :max="lastBookable"
             class="mt-0.5 w-full bg-transparent text-[15px] font-medium text-rail outline-none"
           >
         </div>
@@ -226,6 +260,7 @@ function submit() {
             type="date"
             data-test="date-to"
             :min="date || today"
+            :max="lastBookable"
             class="mt-0.5 w-full bg-transparent text-[15px] font-medium text-rail outline-none"
           >
         </div>
@@ -253,16 +288,40 @@ function submit() {
     </div>
 
     <!-- Ce que la recherche va faire, en clair : le mode n'est plus nommé, il doit être dit. -->
-    <p data-test="search-hint" class="mt-2 px-0.5 text-xs leading-snug text-rail-soft">
+    <p
+      v-if="sameStation"
+      data-test="same-station"
+      class="mt-2 px-0.5 text-xs leading-snug font-medium text-amber-600"
+    >
+      Départ et arrivée sont la même ville : choisissez-en une autre, ou videz « Vers » pour
+      voir toutes les destinations.
+    </p>
+    <p v-else data-test="search-hint" class="mt-2 px-0.5 text-xs leading-snug text-rail-soft">
       {{ hint }}
+    </p>
+
+    <!-- La règle des 30 jours vient de l'abonnement, pas de l'application : sans elle, un
+         champ date qui refuse le mois prochain passe pour un bug. -->
+    <p class="mt-1 px-0.5 text-[11px] leading-snug text-rail-soft/80">
+      Les places à 0 € ouvrent {{ BOOKING_WINDOW_DAYS }} jours avant le départ : réservable
+      jusqu'au {{ humanDate(lastBookable) }}.
     </p>
 
     <p v-if="error" class="mt-2 px-0.5 text-sm text-red-600">{{ error }}</p>
 
+    <!-- Le bouton se désactive sur deux gares identiques : l'explication est juste
+         au-dessus, inutile de laisser cliquer pour la répéter en rouge. La validation
+         dans `submit` reste nécessaire, la touche Entrée soumettant le formulaire même
+         quand son bouton est désactivé. -->
     <button
       type="submit"
-      :disabled="loading"
-      class="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
+      :disabled="loading || sameStation"
+      :class="[
+        'mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-white transition',
+        // Grisé sur une saisie invalide, mais toujours accent pendant le chargement :
+        // une recherche en cours n'est pas une erreur.
+        sameStation ? 'cursor-not-allowed bg-slate-300' : 'bg-accent hover:bg-accent-strong disabled:opacity-70',
+      ]"
     >
       <Spinner v-if="loading" :size="16" />
       <span>{{ loading ? 'Recherche…' : submitLabel }}</span>

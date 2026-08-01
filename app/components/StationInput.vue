@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { cleanString } from '~~/server/utils/normalize'
+
 /**
  * Champ gare avec autocomplétion, conçu pour vivre *dans* un groupe bordé : il n'a ni
  * bordure ni fond propres, et son libellé est en préfixe sur la même ligne. Deux champs
@@ -9,6 +11,8 @@ const props = defineProps<{
   label: string
   placeholder?: string
   testId?: string
+  /** Gare déjà retenue dans l'autre champ : un trajet d'une ville vers elle-même n'existe pas. */
+  exclude?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
 
@@ -16,7 +20,11 @@ const { suggest } = useStations()
 
 const id = useId()
 const open = ref(false)
-const suggestions = computed(() => suggest(props.modelValue))
+const suggestions = computed(() => {
+  const banned = props.exclude ? cleanString(props.exclude) : ''
+  const list = suggest(props.modelValue, banned ? 9 : 8)
+  return (banned ? list.filter((s) => cleanString(s) !== banned) : list).slice(0, 8)
+})
 
 function pick(label: string) {
   emit('update:modelValue', label)
