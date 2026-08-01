@@ -114,8 +114,12 @@ useHead({
 
 <template>
   <div class="min-h-[100dvh] bg-cream text-rail">
-    <!-- HERO -->
-    <section class="relative h-[88vh] min-h-[34rem] w-full overflow-hidden">
+    <!--
+      HERO. Hauteur plancher plutôt que fixe, et pas de `overflow-hidden` : la bannière doit
+      grandir avec son contenu — sur un petit écran le formulaire dépassait, et la liste de
+      suggestions du champ gare se faisait couper au bord du bloc.
+    -->
+    <section class="relative flex min-h-[88dvh] w-full flex-col">
       <!-- Image de fond -->
       <img
         src="/hero.jpg"
@@ -135,18 +139,21 @@ useHead({
           <img src="/logo-mark-white.png" alt="Trainquillou" class="h-9 w-9 object-contain">
           Trainquillou
         </span>
-        <a
-          href="https://data.sncf.com/explore/dataset/tgvmax/"
-          target="_blank"
-          rel="noopener"
-          class="hidden text-sm font-medium text-white/80 transition hover:text-white sm:block"
-        >
-          Open data SNCF
-        </a>
+        <div class="flex items-center gap-5 text-sm font-medium text-white/80">
+          <a
+            href="https://data.sncf.com/explore/dataset/tgvmax/"
+            target="_blank"
+            rel="noopener"
+            class="hidden transition hover:text-white sm:block"
+          >
+            Open data SNCF
+          </a>
+          <GithubLink label="GitHub" class="transition hover:text-white" />
+        </div>
       </header>
 
       <!-- Pitch + CTA -->
-      <div class="relative z-10 flex h-[calc(100%-4rem)] items-center px-5 sm:px-8">
+      <div class="relative z-10 flex flex-1 items-center px-5 pb-12 sm:px-8">
         <div class="max-w-xl">
           <p class="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/25 backdrop-blur">
             <span class="h-1.5 w-1.5 rounded-full bg-coral" />
@@ -160,20 +167,17 @@ useHead({
             Trouvez où partir avec votre abonnement TGVmax depuis n'importe quelle gare,
             à n'importe quelle date. Open data, open source, sans pub.
           </p>
-          <div class="mt-7 flex flex-wrap items-center gap-3">
-            <NuxtLink
-              to="/app"
-              class="rounded-xl bg-coral px-6 py-3 text-base font-semibold text-white shadow-lg shadow-coral/40 transition hover:-translate-y-0.5 hover:bg-coral-strong"
-            >
-              Ouvrir l'application →
-            </NuxtLink>
-            <NuxtLink
-              to="/app?mode=route"
-              class="rounded-xl bg-white/10 px-6 py-3 text-base font-semibold text-white ring-1 ring-white/30 backdrop-blur transition hover:bg-white/20"
-            >
-              Composer un itinéraire
-            </NuxtLink>
-          </div>
+          <!-- La recherche elle-même sert d'accroche : on part d'une gare et d'une date,
+               pas d'un bouton qui promet un formulaire. Les autres modes restent atteignables
+               en dessous, ce qui préserve le maillage vers /app. -->
+          <HeroSearch class="mt-7" />
+          <p class="mt-3 text-sm text-white/75">
+            Ou
+            <NuxtLink to="/app?mode=to" class="font-medium text-white underline decoration-white/40 underline-offset-2 transition hover:decoration-white">chercher à l'envers</NuxtLink>,
+            <NuxtLink to="/app?mode=roundtrip" class="font-medium text-white underline decoration-white/40 underline-offset-2 transition hover:decoration-white">un aller-retour</NuxtLink>,
+            ou
+            <NuxtLink to="/app?mode=route" class="font-medium text-white underline decoration-white/40 underline-offset-2 transition hover:decoration-white">composer un itinéraire</NuxtLink>.
+          </p>
         </div>
       </div>
     </section>
@@ -236,7 +240,10 @@ useHead({
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white p-6 border-t-4 border-t-sun">
           <h3 class="font-semibold text-rail">Open source</h3>
-          <p class="mt-1 text-sm text-rail-soft">Code ouvert sous licence AGPL-3.0, sans tracking ni publicité.</p>
+          <p class="mt-1 text-sm text-rail-soft">
+            Code ouvert sous licence AGPL-3.0, sans tracking ni publicité.
+            <GithubLink label="Voir le dépôt" class="font-medium text-accent-strong hover:underline" />
+          </p>
         </div>
       </div>
 
@@ -296,6 +303,7 @@ useHead({
           · licence AGPL-3.0
         </p>
         <p class="text-rail-soft/70">Non affilié à la SNCF. La réservation des places TGVmax se fait sur SNCF Connect.</p>
+        <GithubLink label="Code source sur GitHub" class="mt-1 font-medium text-rail transition hover:text-accent-strong" />
       </div>
     </footer>
   </div>

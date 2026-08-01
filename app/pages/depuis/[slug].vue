@@ -67,9 +67,12 @@ useHead(() => ({
           <img src="/logo-mark.png" alt="Trainquillou" class="h-8 w-8 object-contain">
           Trainquillou
         </NuxtLink>
-        <NuxtLink to="/app" class="text-sm font-medium text-accent-strong hover:underline">
-          Ouvrir l'application →
-        </NuxtLink>
+        <div class="flex items-center gap-4">
+          <GithubLink class="text-rail-soft transition hover:text-rail" />
+          <NuxtLink to="/app" class="text-sm font-medium text-accent-strong hover:underline">
+            Ouvrir l'application →
+          </NuxtLink>
+        </div>
       </div>
     </header>
 
