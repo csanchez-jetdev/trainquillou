@@ -1,17 +1,14 @@
 <script setup lang="ts">
 import { cleanString } from '~~/server/utils/normalize'
 
-/**
- * Champ gare avec autocomplétion, conçu pour vivre *dans* un groupe bordé : il n'a ni
- * bordure ni fond propres, et son libellé est en préfixe sur la même ligne. Deux champs
- * empilés forment ainsi un objet unique — le trajet — au lieu de deux blocs juxtaposés.
- */
+/** Station field with autocomplete, built to live *inside* a bordered group: it has no
+ *  border or background of its own, and its label is inline. */
 const props = defineProps<{
   modelValue: string
   label: string
   placeholder?: string
   testId?: string
-  /** Gare déjà retenue dans l'autre champ : un trajet d'une ville vers elle-même n'existe pas. */
+  /** Station already picked in the other field: a trip from a city to itself does not exist. */
   exclude?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -31,7 +28,7 @@ function pick(label: string) {
   open.value = false
 }
 
-// Délai au blur pour laisser le clic sur une suggestion s'enregistrer.
+// Delay on blur so a click on a suggestion has time to register.
 function close() {
   setTimeout(() => (open.value = false), 120)
 }

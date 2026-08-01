@@ -1,6 +1,6 @@
 /**
- * Convertit un score de notoriété (nb d'éditions Wikipédia de la ville) en palier
- * d'affichage. Seuils calés sur les quartiles des destinations TGVmax.
+ * Turns a notoriety score (number of Wikipedia editions for the city) into a display tier.
+ * Thresholds set on the quartiles of the TGVmax destinations.
  */
 export interface PopularityTier {
   tier: 0 | 1 | 2 | 3

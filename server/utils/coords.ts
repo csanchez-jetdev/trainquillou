@@ -2,7 +2,7 @@ import { buildCoordsIndex, type CoordsIndex } from './stations'
 
 let coordsIndex: CoordsIndex | null = null
 
-/** Index des coordonnées de gares (construit une fois depuis gares.json, mémoïsé). */
+/** Station coordinates index (built once from gares.json, memoised). */
 export async function getCoordsIndex(): Promise<CoordsIndex> {
   if (!coordsIndex) {
     try {

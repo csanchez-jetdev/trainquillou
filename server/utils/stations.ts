@@ -4,18 +4,18 @@ export type Coords = [number, number] // [lat, lon]
 export type CoordsIndex = Map<string, Coords>
 
 /**
- * Tokens que le dataset TGVmax ajoute et que le référentiel des gares ignore.
- * « PARIS (intramuros) » désigne la ville, pas une gare précise.
+ * Tokens the TGVmax dataset adds and the station reference ignores.
+ * "PARIS (intramuros)" names the city, not a specific station.
  */
 const NOISE_TOKENS = new Set(['intramuros'])
 
-/** Le référentiel abrège ce que TGVmax écrit en entier : « Angers-St-Laud » / « ANGERS SAINT LAUD ». */
+/** The reference abbreviates what TGVmax spells out: "Angers-St-Laud" / "ANGERS SAINT LAUD". */
 const ABBREVIATIONS: Record<string, string> = { saint: 'st', sainte: 'ste' }
 
 /**
- * En repli, un mot court matche par accident : « ur » (commune d'Ur, Pyrénées) est une
- * syllabe de « frankfURt », « rai » de « lorRAIne ». On ne compare que des mots de 3 lettres
- * ou plus, et jamais en sous-chaîne.
+ * In the fallback, a short word matches by accident: "ur" (a village in the Pyrenees) is a
+ * syllable of "frankfURt", "rai" one of "lorRAIne". Only words of 3 letters or more are
+ * compared, and never as substrings.
  */
 const MIN_MATCH_LEN = 3
 
@@ -26,19 +26,19 @@ function tokenize(label: string): string[] {
     .map((t) => ABBREVIATIONS[t] ?? t)
 }
 
-/** Clé de comparaison d'un libellé, commune au dataset TGVmax et au référentiel des gares. */
+/** Comparison key for a label, shared by the TGVmax dataset and the station reference. */
 export function stationKey(label: string): string {
   return tokenize(label).join(' ')
 }
 
 /**
- * Gares absentes du référentiel français : gares étrangères, et gares françaises que
- * `gares.json` ne contient pas. Marne-la-Vallée-Chessy en fait partie — le référentiel ne
- * connaît que le Chessy du Rhône, à 358 km, ce qui plaçait Disneyland près de Lyon.
+ * Stations missing from the French reference: foreign stations, and French ones `gares.json`
+ * does not contain. Marne-la-Vallée-Chessy is one — the reference only knows the Chessy in
+ * the Rhône, 358 km away, which put Disneyland next to Lyon.
  */
 export const EXTRA_STATIONS: Record<string, Coords> = {
-  // France — arrêts que le référentiel ferroviaire ne contient pas : gares desservies
-  // par autocar, arrêts des îles de Ré et d'Oléron, haltes de la Meuse.
+  // France — stops the rail reference does not carry: coach-served stations, stops on the
+  // Ré and Oléron islands, Meuse halts.
   'marne la vallee chessy': [48.8699134, 2.7821727],
   'arcachon': [44.6589798, -1.1653219],
   'la teste': [44.6368737, -1.1431389],
@@ -57,7 +57,7 @@ export const EXTRA_STATIONS: Record<string, Coords> = {
   'pierrefitte sur aire': [48.9003286, 5.3299107],
   'souilly': [49.027658, 5.285761],
   'l hospitalet pres l and': [42.587865, 1.7980639],
-  // Allemagne
+  // Germany
   'frankfurt hbf': [50.107145, 8.663789],
   'frankfurt main hbf': [50.107145, 8.663789],
   'frankfurt am main hbf': [50.107145, 8.663789],
@@ -86,7 +86,7 @@ export const EXTRA_STATIONS: Record<string, Coords> = {
   'saarbruecken sarrebruck': [49.2411972, 6.990794],
   'ulm hbf': [48.3994159, 9.9826024],
   'vaihingen enz': [48.9461895, 8.9586162],
-  // Suisse
+  // Switzerland
   'geneve': [46.210017, 6.142738],
   'geneva': [46.210017, 6.142738],
   'geneve cornavin': [46.2081688, 6.1424953],
@@ -98,13 +98,13 @@ export const EXTRA_STATIONS: Record<string, Coords> = {
   'bern': [46.94809, 7.439116],
   'sion': [46.223098, 7.357765],
   'vallorbe': [46.712326, 6.377928],
-  // Belgique, Luxembourg
+  // Belgium, Luxembourg
   'bruxelles': [50.846733, 4.35706],
   'bruxelles central': [50.846733, 4.35706],
   'bruxelles midi': [50.835694, 4.336934],
   'brussels': [50.846733, 4.35706],
   'luxembourg': [49.5996198, 6.1348882],
-  // Italie, Espagne, Autriche
+  // Italy, Spain, Austria
   'milano centrale': [45.485051, 9.204158],
   'milan centrale': [45.485051, 9.204158],
   'milano porta garibaldi': [45.4849, 9.1878],
@@ -117,9 +117,8 @@ export const EXTRA_STATIONS: Record<string, Coords> = {
 }
 
 /**
- * Libellés TGVmax qui ne correspondent à aucune clé du référentiel, aiguillés explicitement
- * vers la bonne entrée. Une table lisible vaut mieux qu'une heuristique qui devine : sans elle,
- * « LORRAINE TGV » atterrissait dans la commune de Rai, en Normandie.
+ * TGVmax labels matching no reference key, routed explicitly to the right entry. A readable
+ * table beats a guessing heuristic: without it, "LORRAINE TGV" landed in Rai, Normandy.
  */
 const LABEL_ALIASES: Record<string, string> = {
   'aeroport roissy cdg 2 tgv': 'roissy aeroport charles de gaulle 2 tgv rer',
@@ -127,15 +126,14 @@ const LABEL_ALIASES: Record<string, string> = {
   'valence tgv auvergne rhone alpes': 'valence tgv',
   'nimes centre': 'nimes',
   'caussade tarn et garonne': 'caussade',
-  // « st » ne fait que deux lettres : sans aiguillage, seul « die » servait d'accroche
-  // et Saint-Dié-des-Vosges atterrissait à Die, dans la Drôme.
+  // "st" is only two letters: with no routing, "die" was the sole hook and
+  // Saint-Dié-des-Vosges landed in Die, in the Drôme.
   'st die': 'st die des vosges',
-  // Le qualificatif de département devient un mot comparable : « sevres » rattachait
-  // Saint-Maixent à la commune de Sèvres, en région parisienne.
+  // The département qualifier becomes a comparable word: "sevres" tied Saint-Maixent to the
+  // town of Sèvres, near Paris.
   'st maixent deux sevres': 'st maixent l ecole',
-  // Le dataset contient un libellé mal encodé, « ANGOULA<U+008A>ME », en doublon
-  // d'« ANGOULEME » : le caractère de contrôle tombe à la normalisation et laisse
-  // « angoula me ». On le renvoie sur la bonne gare.
+  // The dataset holds a mis-encoded label, "ANGOULA<U+008A>ME", duplicating "ANGOULEME": the
+  // control character drops at normalisation and leaves "angoula me".
   'angoula me': 'angouleme',
 }
 
@@ -154,13 +152,12 @@ export function buildCoordsIndex(records: Array<{ libelle?: string; commune?: st
 }
 
 /**
- * Repli pour un libellé qu'aucune table ne couvre — en pratique, un libellé que SNCF vient
- * d'ajouter au dataset.
+ * Fallback for a label no table covers — in practice, one SNCF has just added to the dataset.
  *
- * Délibérément conservateur : le candidat retenu doit être **entièrement contenu** dans le
- * libellé cherché (chacun de ses mots significatifs y figure). Un point manquant sur la carte
- * est bien moins grave qu'un point faux — la destination reste listée dans les résultats — donc
- * en cas de doute on ne renvoie rien.
+ * Deliberately conservative: the candidate must be **entirely contained** in the searched
+ * label (each of its significant words appears there). A missing point on the map is far less
+ * damaging than a wrong one — the destination stays listed either way — so when in doubt,
+ * return nothing.
  */
 function bestPartialMatch(index: CoordsIndex, tokens: string[]): Coords | null {
   const wanted = new Set(tokens.filter((t) => t.length >= MIN_MATCH_LEN))
@@ -180,7 +177,7 @@ function bestPartialMatch(index: CoordsIndex, tokens: string[]): Coords | null {
       else { contained = false; break }
     }
     if (!contained || !hits) continue
-    // À nombre de mots reconnus égal, le libellé le plus court est le plus spécifique.
+    // At equal word count, the shorter label is the more specific one.
     if (hits > bestHits || (hits === bestHits && parts.length < bestParts)) {
       best = coords
       bestHits = hits
@@ -194,7 +191,7 @@ export type CoordsSource = 'extra' | 'alias' | 'exact' | 'partial' | 'none'
 
 export interface CoordsMatch {
   coords: Coords | null
-  /** Par quel chemin le libellé a été résolu — utile pour vérifier qu'aucun ne repose sur le repli. */
+  /** How the label was resolved — used to check none of them relies on the fallback. */
   via: CoordsSource
 }
 

@@ -2,7 +2,7 @@ import type { RouteResult } from '~~/shared/types'
 
 type RouteData = RouteResult & { truncated: boolean }
 
-/** Recherche d'itinéraires A → B multi-sauts, pilotée par l'URL (?mode=route&origin=&destination=&date=&stops=). */
+/** Multi-hop A → B itinerary search, driven by the URL (?mode=route&origin=&destination=&date=&stops=). */
 export function useItinerary() {
   const route = useRoute()
 
@@ -20,9 +20,8 @@ export function useItinerary() {
         query: { from: from.value, to: to.value, date: date.value, stops: stops.value },
       })
     },
-    // Client-only + non bloquant : la recherche d'itinéraire peut être longue
-    // (exploration du graphe). On affiche la page immédiatement avec le skeleton
-    // plutôt que de bloquer le SSR.
+    // Client-only and non-blocking: graph exploration can be slow, so show the page with
+    // its skeleton right away rather than block SSR.
     { watch: [from, to, date, stops, active], server: false, lazy: true },
   )
 

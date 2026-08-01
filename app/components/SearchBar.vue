@@ -4,7 +4,7 @@ import { todayISO, lastBookableISO, BOOKING_WINDOW_DAYS } from '~~/shared/window
 import { cleanString } from '~~/server/utils/normalize'
 
 type BarMode = SearchMode | 'route'
-/** Comment les dates sont choisies. Le mode de recherche en découle, il n'est plus choisi. */
+/** How dates are picked. The search mode follows from it, it is never chosen directly. */
 type DateKind = 'single' | 'roundtrip' | 'range'
 
 const props = defineProps<{
@@ -20,11 +20,8 @@ const emit = defineEmits<{
   search: [{ origin: string; destination?: string; date: string; dateTo?: string; stops?: string; mode: BarMode }]
 }>()
 
-/**
- * Les cinq modes de recherche ne sont pas cinq choix à faire, mais la conséquence de trois
- * champs : quelle gare de départ, quelle gare d'arrivée (vide = n'importe où), et comment
- * les dates sont choisies. On saisit une intention, l'application en déduit le mode.
- */
+// The five search modes are derived from three fields, not picked: departure station,
+// arrival station (empty = anywhere), and how dates are chosen.
 const from = ref('')
 const to = ref('')
 const dateKind = ref<DateKind>('single')
@@ -33,8 +30,8 @@ const dateTo = ref(props.initialDateTo ?? '')
 const stops = ref(props.initialStops ?? '2')
 const error = ref('')
 
-// L'URL reste la source de vérité et porte toujours `mode` : on rétablit l'état des champs
-// qui produit ce mode, pour qu'un lien partagé ou la page d'accueil ouvrent le bon écran.
+// The URL is the source of truth and always carries `mode`: restore the field state that
+// produces it, so a shared link opens the right screen.
 {
   const m = props.initialMode ?? 'from'
   if (m === 'to') to.value = props.initialOrigin ?? ''
@@ -44,31 +41,27 @@ const error = ref('')
   if (m === 'range') dateKind.value = 'range'
 }
 
-// Les places à 0 € n'ouvrent que 30 jours avant le départ : au-delà, le jeu de données
-// SNCF est vide et une recherche ne renverrait rien, ce qui se lirait comme une panne.
-// Le sélecteur natif refuse donc ces dates plutôt que de laisser aller dans le mur.
+// Free seats only open 30 days out; beyond that the dataset is empty and an empty result
+// reads as a breakdown. The native picker refuses those dates instead.
 const today = todayISO()
 const lastBookable = lastBookableISO()
 
 const hasFrom = computed(() => Boolean(from.value.trim()))
 const hasTo = computed(() => Boolean(to.value.trim()))
 
-/** Aller d'une ville vers elle-même : le dataset le permet (Part-Dieu → Perrache), pas nous. */
+/** A city to itself: the dataset allows it (Part-Dieu → Perrache), we do not. */
 const sameStation = computed(
   () => hasFrom.value && hasTo.value && cleanString(from.value) === cleanString(to.value),
 )
 
-/**
- * Intention reçue de l'URL (`/app?mode=to`), tant qu'aucune gare n'est saisie : un
- * formulaire vide ne peut pas exprimer à lui seul « je cherche à l'envers ». Dès que
- * l'on saisit quelque chose, ce sont les champs qui décident.
- */
+// Intent carried by the URL (`/app?mode=to`), until a station is typed: an empty form
+// cannot express "search backwards" on its own.
 const pendingMode = ref<BarMode | null>(
   props.initialMode === 'to' || props.initialMode === 'route' ? props.initialMode : null,
 )
 watch([from, to], () => (pendingMode.value = null))
 
-/** Aller-retour et plage n'ont de sens que sans gare d'arrivée fixée. */
+/** Round trip and range only make sense without a fixed arrival station. */
 const canPickDateKind = computed(() => !hasTo.value)
 watch(canPickDateKind, (ok) => {
   if (!ok) dateKind.value = 'single'
@@ -93,8 +86,7 @@ const HINTS: Record<BarMode, string> = {
   route: 'Trajet composé avec correspondances, quand aucun TGVmax direct n\'existe.',
 }
 const hint = computed(() => {
-  // Formulaire vide et sans intention particulière : c'est le moment d'annoncer que la
-  // gare d'arrivée est facultative, et ce que ça change de la laisser vide.
+  // Empty form: the moment to say the arrival station is optional.
   if (!hasFrom.value && !hasTo.value && mode.value === 'from') {
     return 'Indiquez une gare de départ — ou seulement une gare d\'arrivée pour chercher à l\'envers.'
   }
@@ -146,7 +138,7 @@ function submit() {
     error.value = 'Choisissez une date.'
     return
   }
-  // Un lien partagé peut porter une date sortie de la fenêtre depuis son envoi.
+  // A shared link can carry a date that has since fallen out of the window.
   if (date.value < today || date.value > lastBookable) {
     error.value = `Les places ne sont réservables que jusqu'au ${humanDate(lastBookable)}.`
     return
@@ -169,7 +161,7 @@ function submit() {
   }
   error.value = ''
   emit('search', {
-    // En recherche inversée, la gare cherchée est celle d'arrivée : c'est elle le pivot.
+    // In reverse search the pivot is the arrival station.
     origin: (mode.value === 'to' ? to.value : from.value).trim(),
     destination: mode.value === 'route' ? to.value.trim() : undefined,
     date: date.value,
@@ -182,26 +174,20 @@ function submit() {
 
 <template>
   <!--
-    Deux dispositions. En colonne sur mobile, comme un formulaire. En barre horizontale à
-    partir de `md` : empilés dans une colonne de 384 px, ces quatre contrôles prenaient
-    309 px de haut, soit plus que la liste de résultats qu'ils produisent.
-
-    `flex-wrap` plutôt qu'un troisième palier de largeur : la barre se plie d'elle-même en
-    deux rangées là où elle ne tient plus, entre 768 et 1 000 px, et la mise en page reste
-    binaire — colonne ou barre.
-
-    L'ordre suit la disposition, via `order` : le bouton vient après les champs sur la
-    barre, mais reste sous le texte qui annonce ce qu'il va faire en colonne.
+    Two layouts. A column on mobile, like a form. A horizontal bar from `md` up: stacked in a
+    384 px column, these four controls took 309 px of height, more than the result list they
+    produce. `flex-wrap` rather than a third width breakpoint — the bar folds into two rows on
+    its own where it no longer fits, and the layout stays binary. Order follows the layout via
+    `order`: the button comes after the fields on the bar, but stays under the text announcing
+    what it will do in the column.
   -->
   <form class="flex w-full flex-col gap-2 md:flex-row md:flex-wrap" @submit.prevent="submit">
-    <!-- Le trajet : un seul objet, pas deux champs juxtaposés. Le bouton d'inversion se
-         pose sur le séparateur qu'il fait pivoter — sur le bord droit du cadre en colonne,
-         entre les deux champs sur la barre. -->
-    <!-- `md:min-w-[24rem]` : le plancher sous lequel la barre se plie plutôt que de
-         comprimer les champs davantage. En dessous de 1 100 px et dans les modes à trois
-         cellules de date, un long libellé s'y tronque encore — « LYON (intr » — et c'est
-         assumé : la gare est réécrite en entier dans l'en-tête des résultats juste dessous,
-         et la hauteur rendue à la liste est ce qu'on est venu chercher. -->
+    <!-- The swap button sits on the divider it flips: on the frame's right edge in the
+         column, between the two fields on the bar.
+         `md:min-w-[24rem]` is the floor below which the bar folds rather than squeezing the
+         fields further. Under 1100 px in the three-date-cell modes a long label still gets
+         truncated there, which is accepted: the station is spelled out again in the results
+         header just below. -->
     <div class="relative order-1 rounded-xl border border-slate-200 bg-white md:flex md:min-w-[24rem] md:flex-1 md:items-stretch">
       <StationInput
         v-model="from"
@@ -236,15 +222,12 @@ function submit() {
       </button>
     </div>
 
-    <!-- Quand : même traitement, un cadre unique découpé en cellules.
-         `md:contents` sur les rangées : sur la barre elles s'effacent et leurs cellules
-         deviennent directement celles du cadre, sans dupliquer le balisage ni maintenir
-         deux arborescences. Leur `border-t`, qui séparait les rangées empilées, disparaît
-         avec elles. -->
-    <!-- `md:flex-none` : ce cadre est dimensionné par son contenu, jamais comprimé. Il
-         compte deux cellules, trois en aller-retour ou en itinéraire ; avec un ratio de
-         croissance, la troisième débordait sous le bouton de recherche en dessous de
-         1 100 px. Seul le cadre du trajet s'étire, ses champs en ont l'usage. -->
+    <!-- When: same treatment, one frame cut into cells. `md:contents` on the rows — on the bar
+         they vanish and their cells become the frame's own, without duplicating markup or
+         maintaining two trees; their `border-t`, which separated the stacked rows, goes with
+         them. `md:flex-none`: this frame is sized by its content, never squeezed. It holds two
+         cells, three in round-trip or itinerary mode; with a grow ratio the third overflowed
+         under the submit button below 1100 px. Only the journey frame stretches. -->
     <div class="order-2 rounded-xl border border-slate-200 bg-white md:flex md:flex-none md:items-stretch">
       <div class="grid grid-cols-2 md:contents">
         <div class="px-3 py-2 md:min-w-[8.5rem] md:flex-1">
@@ -276,11 +259,10 @@ function submit() {
         </div>
       </div>
 
-      <!-- Ces lignes n'ont qu'une cellule, mais gardent la grille à deux colonnes en
-           colonne : sinon leur champ s'étire sur toute la largeur et son icône de
-           calendrier ne tombe plus en face de celle de la ligne du dessus.
-           Les deux sont exclusives — une plage de dates suppose une arrivée libre, un
-           itinéraire suppose une arrivée fixée — donc jamais plus d'une cellule ici. -->
+      <!-- One cell, but the two-column grid stays in column layout: otherwise the field
+           stretches full width and its calendar icon no longer lines up with the row above.
+           The two are exclusive — a date range implies a free arrival, an itinerary a fixed
+           one — so never more than one cell here. -->
       <div v-if="hasSecondDate" class="grid grid-cols-2 border-t border-slate-100 md:contents">
         <div class="px-3 py-2 md:min-w-[8.5rem] md:flex-1 md:border-l md:border-slate-100">
           <span class="block text-xs font-medium text-rail-soft">
@@ -319,14 +301,13 @@ function submit() {
     </div>
 
     <!--
-      Les deux textes d'aide. Empilés en colonne, sur une seule ligne sur la barre : ils y
-      tiennent côte à côte et coûtent alors 18 px au lieu de 63. Aucun des deux n'est
-      supprimé pour autant — le premier est le seul endroit où le mode de recherche est
-      dit, puisqu'il n'est plus nommé nulle part, et le second explique pourquoi le
-      sélecteur de date s'arrête.
+      The two help texts. Stacked in the column, on a single line on the bar, where they fit
+      side by side and cost 18 px instead of 63. Neither is dropped: the first is the only
+      place the search mode is stated, since it is named nowhere else, and the second explains
+      why the date picker stops.
     -->
     <div class="order-3 flex flex-col gap-1 px-0.5 md:order-4 md:w-full md:flex-row md:flex-wrap md:items-baseline md:gap-x-2">
-      <!-- Ce que la recherche va faire, en clair. -->
+      <!-- The mode is never named, so state what the search is about to do. -->
       <p
         v-if="sameStation"
         data-test="same-station"
@@ -339,8 +320,8 @@ function submit() {
         {{ hint }}
       </p>
 
-      <!-- La règle des 30 jours vient de l'abonnement, pas de l'application : sans elle, un
-           champ date qui refuse le mois prochain passe pour un bug. -->
+      <!-- The 30-day rule comes from the subscription, not the app: unsaid, a date field that
+           refuses next month looks like a bug. -->
       <p class="text-[11px] leading-snug text-rail-soft/80">
         Les places à 0 € ouvrent {{ BOOKING_WINDOW_DAYS }} jours avant le départ : réservable
         jusqu'au {{ humanDate(lastBookable) }}.
@@ -349,17 +330,15 @@ function submit() {
 
     <p v-if="error" class="order-4 px-0.5 text-sm text-red-600 md:order-5 md:w-full">{{ error }}</p>
 
-    <!-- Le bouton se désactive sur deux gares identiques : l'explication est juste
-         au-dessus, inutile de laisser cliquer pour la répéter en rouge. La validation
-         dans `submit` reste nécessaire, la touche Entrée soumettant le formulaire même
-         quand son bouton est désactivé. -->
+    <!-- Disabled on two identical stations. `submit` still validates: Enter submits the form
+         even when its button is disabled. -->
     <button
       type="submit"
       :disabled="loading || sameStation"
       :class="[
         'order-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-white transition md:order-3 md:w-auto md:shrink-0',
-        // Grisé sur une saisie invalide, mais toujours accent pendant le chargement :
-        // une recherche en cours n'est pas une erreur.
+        // Greyed out on invalid input, but still accent while loading: a running search
+        // is not an error.
         sameStation ? 'cursor-not-allowed bg-slate-300' : 'bg-accent hover:bg-accent-strong disabled:opacity-70',
       ]"
     >

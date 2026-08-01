@@ -12,14 +12,14 @@ const emit = defineEmits<{
   select: [string]
   hover: [string | null]
   retry: []
-  /** Labels retenus par les filtres, ou `null` s'il n'y en a aucun. */
+  /** Labels kept by the filters, or `null` when none is active. */
   'update:visible': [string[] | null]
 }>()
 
 type Sort = 'default' | 'duration' | 'popularity'
 const sortBy = ref<Sort>('default')
 
-/** Durée maximale du trajet le plus court, en minutes. `null` = pas de filtre. */
+/** Longest acceptable fastest trip, in minutes. `null` = no filter. */
 const maxDuration = ref<number | null>(null)
 const DURATIONS = [
   { minutes: 120, label: '≤ 2h' },
@@ -35,11 +35,11 @@ const PERIODS: Array<{ key: Period; label: string }> = [
   { key: 'evening', label: 'Soir' },
 ]
 
-/** Nombre minimum de jours joignables, en exploration sur une plage. */
+/** Minimum number of reachable days, when exploring a date range. */
 const minDays = ref<number | null>(null)
 const DAY_THRESHOLDS = [2, 3, 5]
 
-/** Le mode plage ne renvoie pas d'horaires, seulement des jours : filtrer sur la durée n'a rien à mordre. */
+/** Range mode returns days, not schedules: a duration filter has nothing to bite on. */
 const isRange = computed(() => props.result?.mode === 'range')
 
 function inPeriod(hhmm: string, p: Period): boolean {
@@ -75,7 +75,7 @@ const visible = computed(() => {
     return list.sort((a, b) => (b.popularity ?? -1) - (a.popularity ?? -1) || a.label.localeCompare(b.label))
   }
   if (sortBy.value === 'duration') {
-    // Une destination sans horaire connu ne peut pas être classée par durée : elle passe en fin.
+    // A destination with no known schedule cannot be ranked by duration: it goes last.
     const key = (d: (typeof list)[number]) => {
       const best = fastestTrip(d.trains)
       return best ? tripDurationMin(best) : Number.POSITIVE_INFINITY
@@ -87,8 +87,7 @@ const visible = computed(() => {
 
 const isFiltering = computed(() => Boolean(maxDuration.value || period.value || minDays.value))
 
-// La carte doit montrer exactement ce que la liste montre : « 20 affichées » au-dessus de
-// 74 points sur la carte, ce sont deux réponses différentes à la même question.
+// The map must show exactly what the list shows.
 watch(
   [filtered, isFiltering],
   () => emit('update:visible', isFiltering.value ? filtered.value.map((d) => d.label) : null),
@@ -104,10 +103,7 @@ function clearFilters() {
 const hubName = computed(() => (props.result ? prettyLabel(props.result.origin.label) : ''))
 const noun = computed(() => (props.result?.mode === 'to' ? 'origine' : 'destination'))
 
-// Contour sur fond blanc au repos : un aplat gris se lit comme une étiquette morte,
-// pas comme une option qu'on peut activer.
-// Six pastilles doivent tenir sur une seule ligne dans 360 px : au-delà, « Soir » se
-// retrouve orphelin sur une deuxième rangée.
+// Six chips have to fit on one row at 360px, or "Soir" ends up orphaned on a second one.
 const CHIP = 'rounded-full border px-2 py-1 text-xs font-medium transition'
 const CHIP_ON = 'border-accent bg-accent text-white'
 const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-300 hover:text-rail'
@@ -125,8 +121,7 @@ const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-30
     </div>
 
     <template v-else-if="result">
-      <!-- Le tri partage la ligne du décompte, qui a de la place : une rangée de
-           contrôles en moins au-dessus d'une liste qu'on veut voir. -->
+      <!-- Sort shares the count row: one fewer control row above the list. -->
       <div class="flex items-baseline gap-2 px-0.5">
         <p class="min-w-0 flex-1 truncate text-sm text-rail-soft">
           <strong class="text-rail">{{ all.length }}</strong>
@@ -155,7 +150,7 @@ const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-30
         </div>
       </div>
 
-      <!-- Filtres : sur 130 destinations, restreindre bat n'importe quel tri -->
+      <!-- On 130 destinations, narrowing beats any sort. -->
       <div v-if="all.length > 1" class="flex flex-wrap items-center gap-1.5 px-0.5">
         <template v-if="isRange">
           <button
@@ -200,11 +195,8 @@ const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-30
         </button>
       </div>
 
-      <!-- Pleine largeur, séparées par des filets : 74 rectangles bordés faisaient une
-           échelle. La marge négative annule le padding de la colonne.
-           `pb-14` sur mobile : de quoi faire défiler la dernière destination au-dessus de
-           la bascule carte / liste, qui flotte par-dessus le bas de la liste. Du défilement
-           en plus, pas de la hauteur utile en moins. -->
+      <!-- The negative margin cancels the column padding. `pb-14` on mobile buys enough
+           scroll to clear the floating map/list toggle: extra scroll, not less height. -->
       <ul v-if="visible.length" class="-mx-3 divide-y divide-slate-100 overflow-auto border-t border-slate-100 pb-14 md:pb-0">
         <DestinationCard
           v-for="d in visible"

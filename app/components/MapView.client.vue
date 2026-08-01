@@ -8,9 +8,9 @@ const props = defineProps<{
   route?: (RouteResult & { truncated?: boolean }) | null
   selectedRoute?: number
   hovered: string | null
-  /** Destination dont la fiche est ouverte. */
+  /** Destination whose popover is open. */
   selected?: string | null
-  /** Restriction aux destinations retenues par les filtres du rail ; `null` = toutes. */
+  /** Restricts to the destinations kept by the rail filters; `null` = all of them. */
   visibleLabels?: string[] | null
   returnsLoading?: string | null
   returns?: Record<string, ReturnDatesResult>
@@ -21,23 +21,13 @@ const emit = defineEmits<{
   'show-returns': [string]
 }>()
 
-/**
- * Fond de carte OpenFreeMap : vectoriel, libre, sans clé d'API ni quota, et
- * auto-hébergeable — cohérent avec un projet qui ne veut aucune dépendance à clé.
- * Données OpenStreetMap, schéma OpenMapTiles.
- */
+/** Free vector tiles, no API key and no quota. OpenStreetMap data, OpenMapTiles schema. */
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 
-/**
- * Libellés en français quand la tuile les porte. Le style d'origine affiche `name:latin`,
- * ce qui donnait « Brittany », « Upper France » ou « New Aquitania » sur une carte française.
- */
+/** The upstream style shows `name:latin` — "Brittany", "Upper France" on a French map. */
 const FRENCH_LABELS = ['coalesce', ['get', 'name:fr'], ['get', 'name:latin'], ['get', 'name']]
 
-/**
- * Teintes calées sur la charte : fond crème, eau bleu-vert désaturée. Le fond doit rester
- * en retrait pour que les tracés teal et les marqueurs corail se détachent.
- */
+/** Brand tints. The base map stays muted so teal lines and coral markers stand out. */
 const TINTS: Array<{ id: string; prop: string; color: string }> = [
   { id: 'background', prop: 'background-color', color: '#faf9f5' },
   { id: 'water', prop: 'fill-color', color: '#d8e7ea' },
@@ -49,29 +39,24 @@ const TINTS: Array<{ id: string; prop: string; color: string }> = [
 const instance = getCurrentInstance()
 let map: maplibregl.Map | null = null
 let sizeObserver: ResizeObserver | null = null
-/**
- * Le style est chargé et les couches peuvent être ajoutées. On ne peut pas se fier à
- * `map.loaded()` : il renvoie `false` pendant une animation de caméra, et un
- * `map.once('load')` posé à ce moment-là attend un événement déjà passé — le rendu
- * était alors abandonné sans bruit.
- */
+// Not `map.loaded()`: it returns false during a camera animation, and a `once('load')` posted
+// then waits for an event that has already fired — the render was silently dropped.
 let styleReady = false
 const markers = new Map<string, maplibregl.Marker>()
 
-/** Francise les libellés et applique la teinte de la charte au style chargé. */
+/** Frenchifies labels and applies the brand tints to the loaded style. */
 function styleBaseMap() {
   if (!map) return
 
   for (const layer of map.getStyle().layers ?? []) {
     if (layer.type !== 'symbol') continue
     const textField = layer.layout?.['text-field']
-    // Uniquement les couches qui affichent un nom : les écussons de route utilisent
-    // `ref` et seraient vidés par la substitution.
+    // Name layers only: road shields use `ref` and would be blanked by the substitution.
     if (!textField || !JSON.stringify(textField).includes('name')) continue
     try {
       map.setLayoutProperty(layer.id, 'text-field', FRENCH_LABELS)
     } catch {
-      // Une couche du style amont a changé de forme : on garde son libellé d'origine.
+      // An upstream layer changed shape: keep its original label.
     }
   }
 
@@ -80,7 +65,7 @@ function styleBaseMap() {
     try {
       map.setPaintProperty(id, prop, color)
     } catch {
-      // Idem : la teinte est cosmétique, son échec ne doit pas casser la carte.
+      // Same: the tint is cosmetic, failing to apply it must not break the map.
     }
   }
 }
@@ -89,11 +74,11 @@ const selectedDest = computed(
   () => props.result?.destinations.find((d) => d.label === props.selected) ?? null,
 )
 
-/** Position à l'écran de la fiche, recalculée à chaque déplacement de la carte. */
+/** On-screen position of the popover, recomputed on every map move. */
 const popoverPos = ref<{ x: number; y: number; below: boolean } | null>(null)
 const popoverEl = ref<HTMLElement | null>(null)
 
-/** Écart entre le marqueur et la fiche, en pixels. */
+/** Gap between the marker and the popover, in pixels. */
 const GAP = 18
 
 function syncPopover() {
@@ -104,22 +89,20 @@ function syncPopover() {
   }
   const point = map.project([dest.coords[1], dest.coords[0]])
   const container = map.getContainer()
-  // La fiche fait 19rem : on la garde dans le cadre plutôt que de la laisser déborder.
+  // The popover is 19rem wide: keep it inside the frame rather than let it spill out.
   const half = 160
   const x = Math.min(Math.max(point.x, half), Math.max(half, container.clientWidth - half))
 
-  // Au-dessus par défaut, en dessous s'il n'y a pas la place. La hauteur varie du simple
-  // au double selon le contenu (dates de retour dépliées), donc on la mesure.
+  // Above by default, below when there is no room. Content can double the height
+  // (expanded return dates), so measure it.
   const height = popoverEl.value?.offsetHeight ?? 260
   const below = point.y - height - GAP < 8
 
   popoverPos.value = { x, y: point.y, below }
 }
 
-/**
- * Recentre sur la destination choisie si elle est hors cadre. Sélectionner depuis la liste
- * ouvrirait sinon une fiche invisible ; cliquer un marqueur déjà à l'écran ne bouge rien.
- */
+/** Recenters on the selected destination when off-screen: picking from the list would
+ *  otherwise open an invisible popover. */
 function revealSelected() {
   const dest = selectedDest.value
   if (!map || !dest?.coords) return
@@ -136,8 +119,7 @@ function revealSelected() {
 
 watch(() => props.selected, () => nextTick(revealSelected))
 
-// Deux passes : la première rend la fiche, la seconde la replace une fois sa hauteur connue.
-// `returns` en fait partie : déplier les dates de retour double la hauteur de la fiche.
+// Two passes: the first renders the popover, the second places it once its height is known.
 watch(
   () => [props.selected, props.result, props.returns] as const,
   () => nextTick(() => {
@@ -158,22 +140,19 @@ onMounted(async () => {
       style: MAP_STYLE,
       center: [2.4, 46.5],
       zoom: 5,
-      // L'attribution (OpenFreeMap, OpenMapTiles, OpenStreetMap) vient du TileJSON de
-      // la source : la déclarer ici la ferait apparaître en double.
+      // Attribution comes from the source TileJSON: declaring it here would duplicate it.
       attributionControl: { compact: true },
       // Le suivi de taille est fait ici, voir plus bas.
       trackResize: false,
     })
 
     /**
-     * Suivi de la taille du conteneur, à la place de celui de MapLibre. Le sien écarte sa
-     * première notification — celle que `ResizeObserver` émet toujours à l'abonnement —
-     * pour ne pas refaire le calcul du constructeur. Mais si la mise en page bouge dans la
-     * même frame que la création de la carte, les deux tailles se fondent en une seule
-     * notification, celle-ci est écartée, et le canevas reste figé à sa taille de départ
-     * pour de bon. C'est le cas ici dès qu'une recherche aboutit : elle replie le
-     * formulaire, la ligne de la carte grandit d'autant, et la carte s'arrêtait aux deux
-     * tiers de sa ligne sur mobile.
+     * Our own container-size tracking, in place of MapLibre's. Theirs discards its first
+     * notification — the one `ResizeObserver` always emits on subscribe — so as not to redo
+     * the constructor's work. But when the layout moves in the same frame as map creation,
+     * both sizes coalesce into that single discarded notification and the canvas stays stuck
+     * at its initial size for good. Which is the case here as soon as a search lands: it
+     * collapses the form, the map's row grows, and the map stopped two thirds down its row.
      */
     let lastSize = ''
     sizeObserver = new ResizeObserver(() => {
@@ -189,9 +168,9 @@ onMounted(async () => {
       styleBaseMap()
       draw()
     })
-    // La fiche est positionnée en pixels : elle doit suivre la carte.
+    // The popover is positioned in pixels: it has to follow the map.
     map.on('move', syncPopover)
-    // Un clic sur le fond, hors marqueur, referme la fiche.
+    // A click on the background, outside any marker, closes the popover.
     map.on('click', () => emit('select', null))
   } catch (e) {
     console.error('[MapView] maplibre init failed:', e)
@@ -217,15 +196,14 @@ function removeLayerSource(id: string) {
 }
 
 /**
- * Marge du cadrage, en pixels. Elle était fixée à 400 px à gauche, du temps où la carte
- * passait en pleine largeur sous la colonne de recherche ; celle-ci occupe désormais sa
- * propre colonne de grille et cette marge ne faisait plus que tasser les points contre le
- * bord droit. Sur un téléphone elle était fatale : 400 px de marge dans 393 px de large
- * donnent une largeur utile négative, et le cadrage sortait la moitié des marqueurs du
- * cadre — dont la gare de départ.
+ * Framing padding, in pixels. It used to be a flat 400 px on the left, from when the map ran
+ * full width under the search column; that column now has its own grid column, and the margin
+ * only crammed the points against the right edge. On a phone it was fatal: 400 px of padding
+ * in a 393 px-wide container gives a negative usable width, and the framing pushed half the
+ * markers — including the origin station — out of frame.
  *
- * Donc une fraction du conteneur, plafonnée : une marge doit aérer le cadrage, pas le
- * manger, et elle ne peut jamais dépasser ce qu'elle borde.
+ * Hence a capped fraction of the container: padding should air out the framing, not eat it,
+ * and can never exceed what it borders.
  */
 function fitPadding(): maplibregl.PaddingOptions {
   const el = map?.getContainer()
@@ -234,14 +212,14 @@ function fitPadding(): maplibregl.PaddingOptions {
   return { top: y, bottom: y, left: x, right: x }
 }
 
-/** Crée un élément DOM de marqueur (pastille colorée). */
+/** Creates a marker DOM element (coloured dot). */
 function dot(color: string, size: number): HTMLDivElement {
   const el = document.createElement('div')
   el.style.cssText = `width:${size}px;height:${size}px;background:${color};border-radius:50%;border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45);box-sizing:border-box`
   return el
 }
 
-/** Aiguille le rendu selon la source active : itinéraire prioritaire, sinon recherche. */
+/** A route takes precedence over search results. */
 function draw() {
   if (!map) return
   if (props.route) renderRoute(props.route, props.selectedRoute ?? 0)
@@ -262,11 +240,9 @@ function renderRoute(route: RouteResult, selected: number) {
   const it = route.itineraries[selected]
   const pts: [number, number][] = []
   if (it) {
-    // Suite ordonnée des nœuds : départ du 1er leg, puis arrivée de chaque leg
     const nodes = [it.legs[0]?.fromCoords, ...it.legs.map((l) => l.toCoords)].filter(Boolean) as [number, number][]
     nodes.forEach((c, i) => {
       pts.push(c)
-      // Marqueur intermédiaire (ni A ni B)
       if (i > 0 && i < nodes.length - 1) {
         const el = dot('#14b8b0', 14)
         markers.set(`__via_${i}__`, new maplibregl.Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
@@ -302,13 +278,12 @@ function render(result: SearchResult | null | undefined) {
   clearMarkers()
   removeLayerSource('route-line')
 
-  // Remove existing lines layer/source
   if (map.getLayer('lines')) map.removeLayer('lines')
   if (map.getSource('lines')) map.removeSource('lines')
 
   const o = result.origin.coords
   if (o) {
-    // La gare de référence : plus grosse et en navy, pour se distinguer des destinations.
+    // The reference station: bigger and navy, to stand apart from the destinations.
     const el = document.createElement('div')
     el.style.cssText = 'width:18px;height:18px;background:#0b1f3a;border-radius:50%;border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45);box-sizing:border-box'
     el.title = result.origin.label
@@ -322,12 +297,9 @@ function render(result: SearchResult | null | undefined) {
 
   for (const d of shown) {
     if (!d.coords) continue
-    // MapLibre positionne le marqueur en écrivant `transform` sur CET élément : toute
-    // animation doit viser la pastille enfant, sinon le marqueur saute à l'origine
-    // de la carte jusqu'au prochain déplacement.
-    //
-    // L'élément fait 28 px et reste transparent : la zone de clic est volontairement
-    // bien plus large que la pastille, viser 14 px au doigt étant pénible.
+    // MapLibre positions the marker by writing `transform` on THIS element: animate the
+    // child dot, or the marker jumps to the map origin until the next move.
+    // 28px and transparent: the hit area is deliberately wider than the 14px dot.
     const el = document.createElement('div')
     el.className = 'tq-dest-marker'
     el.dataset.label = d.label
@@ -341,7 +313,7 @@ function render(result: SearchResult | null | undefined) {
     el.appendChild(pin)
 
     el.addEventListener('click', (event) => {
-      // Sans cela, le clic remonte à la carte, qui referme aussitôt la fiche.
+      // Without this the click reaches the map, which closes the popover right away.
       event.stopPropagation()
       emit('select', props.selected === d.label ? null : d.label)
     })
@@ -365,7 +337,6 @@ function render(result: SearchResult | null | undefined) {
 
   applyMarkerStyles()
 
-  // Fit bounds around all visible points
   const pts = [o, ...shown.map((d) => d.coords)].filter(Boolean) as [number, number][]
   if (pts.length > 1) {
     const b = new maplibregl.LngLatBounds()
@@ -374,21 +345,17 @@ function render(result: SearchResult | null | undefined) {
   }
 }
 
-// Redessine quand la source change (résultat de recherche, itinéraire, ou itinéraire sélectionné).
-// Le rendu initial est déclaré dans onMounted.
+// Redraw when the source changes. The initial render is wired up in onMounted.
 watch([() => props.result, () => props.route, () => props.selectedRoute, () => props.visibleLabels], () => {
   if (styleReady) draw()
 })
 
-/**
- * Un marqueur peut être survolé, sélectionné, ou les deux : un seul endroit décide de
- * son apparence, pour que les deux états ne se marchent pas dessus.
- */
+/** A marker can be hovered, selected, or both: one place decides how it looks. */
 function applyMarkerStyles() {
   markers.forEach((m, key) => {
-    if (key.startsWith('__')) return // origine et marqueurs d'itinéraire
+    if (key.startsWith('__')) return // origin and route markers
     const el = m.getElement()
-    // La pastille, pas l'élément marqueur : celui-ci appartient à MapLibre.
+    // The dot, not the marker element: that one belongs to MapLibre.
     const pin = el.firstElementChild as HTMLElement | null
     if (!pin) return
     const isSelected = key === props.selected
@@ -404,11 +371,10 @@ watch(() => [props.hovered, props.selected], applyMarkerStyles)
 
 <template>
   <div class="h-full w-full">
-    <!-- inline style: position:absolute a priorité 1000 et ne peut pas être écrasé par maplibregl-map {position:relative} -->
+    <!-- inline style: outranks maplibregl-map {position:relative} -->
     <div class="map-inner" style="position:absolute;inset:0;" />
 
-    <!-- Fiche de la destination sélectionnée, ancrée sur son marqueur.
-         Le calque laisse passer les clics ; seule la fiche les capte. -->
+    <!-- The overlay lets clicks through; only the popover catches them. -->
     <div v-if="selectedDest && popoverPos" class="pointer-events-none absolute inset-0 z-20 overflow-hidden">
       <div
         ref="popoverEl"

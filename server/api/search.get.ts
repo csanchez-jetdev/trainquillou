@@ -16,7 +16,7 @@ import type { SearchResult, SearchMode } from '~~/shared/types'
 
 const MODES: SearchMode[] = ['from', 'to', 'range', 'roundtrip']
 
-/** Les modes à deux dates : plage d'exploration, ou aller-retour. */
+/** The two-date modes: range exploration, or round trip. */
 const NEEDS_SECOND_DATE: SearchMode[] = ['range', 'roundtrip']
 
 export default defineCachedEventHandler(
@@ -40,9 +40,8 @@ export default defineCachedEventHandler(
       throw createError({ statusCode: 400, statusMessage: 'return date must not precede outbound date' })
     }
 
-    // Les places à 0 € n'ouvrent que 30 jours avant le départ : au-delà, le dataset SNCF
-    // est vide. Une plage non bornée demanderait un appel amont par jour pour rien —
-    // jusqu'à cent requêtes inutiles sur l'API publique.
+    // Free seats only open 30 days out; beyond that the dataset is empty. An unbounded range
+    // would cost one upstream call per day for nothing — up to a hundred useless requests.
     if (date > lastBookableISO()) {
       throw createError({
         statusCode: 400,
@@ -68,10 +67,9 @@ export default defineCachedEventHandler(
       destinations = groupReservableTrains(await fetchOutbound(origin, date))
     }
 
-    // Le dataset relie une ville à elle-même quand elle a plusieurs gares : Lyon Part-Dieu
-    // → Lyon Perrache portent tous deux le libellé « LYON (intramuros) ». C'est un vrai
-    // train, mais pas une destination : personne ne cherche où aller depuis Lyon pour
-    // s'entendre répondre Lyon.
+    // The dataset links a city to itself when it has several stations: Lyon Part-Dieu →
+    // Lyon Perrache both carry the label "LYON (intramuros)". A real train, but not a
+    // destination.
     const hubKey = stationKey(origin)
     destinations = destinations.filter((d) => stationKey(d.label) !== hubKey)
 
@@ -91,7 +89,7 @@ export default defineCachedEventHandler(
         slug: lookupBookingSlug(origin),
       },
       date,
-      // La date bornée, pas celle demandée : le front doit refléter la plage réellement explorée.
+      // The clamped date, not the requested one: the client must reflect the range actually explored.
       ...(NEEDS_SECOND_DATE.includes(mode) ? { dateTo } : {}),
       mode,
       destinations: enriched,

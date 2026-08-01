@@ -2,30 +2,28 @@ import tailwindcss from '@tailwindcss/vite'
 import { STATION_PAGES } from './shared/stations'
 
 /**
- * Mesure d'audience Rybbit : sans cookie, sans identifiant persistant, et sans
- * stockage des adresses IP d'après sa politique de confidentialité. Celle-ci ne
- * précise en revanche pas la juridiction d'hébergement : ne rien affirmer à ce
- * sujet dans l'interface tant que ce n'est pas confirmé par l'éditeur.
+ * Rybbit analytics: no cookie, no persistent identifier and no IP storage, per its privacy
+ * policy. That policy does not state the hosting jurisdiction, so claim nothing about it in
+ * the UI until the vendor confirms.
  *
- * Volontairement vide par défaut. Ce dépôt est public et l'auto-hébergement est une
- * fonctionnalité annoncée : coder l'identifiant en dur enverrait le trafic d'une
- * instance tierce vers un compte qu'elle n'a pas choisi. L'instance officielle le
- * fournit par variable d'environnement au moment du build (voir infra/deploy.sh).
+ * Deliberately empty by default. This repo is public and self-hosting is an advertised
+ * feature: hardcoding the id would send a third-party instance's traffic to an account it
+ * never chose. The official instance supplies it as a build-time env var (see infra/deploy.sh).
  */
 const RYBBIT_SITE_ID = process.env.NUXT_PUBLIC_RYBBIT_SITE_ID ?? ''
 
 /**
- * URL publique de l'instance. Lue à la construction, parce que les aperçus de
- * partage l'exigent en absolu : `og:image` relatif n'est pas résolu de façon
- * fiable par les robots de Facebook, LinkedIn, X ou Slack, et l'aperçu tombe.
- * En auto-hébergement, définir NUXT_PUBLIC_SITE_URL avant `pnpm build`.
+ * Public URL of the instance. Read at build time, because share previews need it absolute:
+ * a relative `og:image` is not reliably resolved by the Facebook, LinkedIn, X or Slack
+ * crawlers, and the preview breaks. When self-hosting, set NUXT_PUBLIC_SITE_URL before
+ * `pnpm build`.
  */
 const SITE_URL = (process.env.NUXT_PUBLIC_SITE_URL || 'https://trainquillou.fr').replace(/\/$/, '')
 
 /**
- * Images de `public/` servies avec un cache long (voir `nitro.routeRules`).
- * Tenir à jour en ajoutant une image : une absence ici ne casse rien, elle
- * fait juste retélécharger le fichier à chaque visite.
+ * Images from `public/` served with a long cache (see `nitro.routeRules`).
+ * Keep in sync when adding an image: a missing entry breaks nothing, it just makes the
+ * file download again on every visit.
  */
 const CACHED_IMAGES = [
   'hero.jpg',
@@ -45,13 +43,11 @@ const CACHED_IMAGES = [
 ]
 
 /**
- * Double nommage TGVmax / MAX JEUNE dans tout le texte destiné aux moteurs.
+ * Both names, TGVmax and MAX JEUNE, in every string aimed at search engines.
  *
- * La SNCF a renommé l'abonnement MAX JEUNE en 2023 ; « TGVmax » n'est plus le nom
- * officiel, mais il concentre encore l'essentiel des recherches, et le jeu de
- * données open data porte toujours ce nom. Les deux termes cohabitent donc dans
- * les titres et descriptions : abandonner l'ancien coûterait du trafic
- * aujourd'hui, ignorer le nouveau en coûterait demain.
+ * SNCF renamed the subscription MAX JEUNE in 2023; "TGVmax" is no longer the official name
+ * but still carries most of the search volume, and the open dataset keeps that name. Dropping
+ * the old one would cost traffic today, ignoring the new one would cost traffic tomorrow.
  */
 const TITLE = 'Trainquillou — destinations TGVmax (MAX JEUNE) sur une carte'
 const DESCRIPTION
@@ -67,11 +63,10 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
 
-  // 3000 est le port par défaut de trop de choses — dont Langfuse, qui tourne en
-  // conteneur sur la machine de développement. Sans port fixe, Nuxt en choisit un
-  // libre au hasard et les URL de test changent d'une session à l'autre.
-  // Surchargeable par `PORT` ou `pnpm dev --port`. Ne concerne pas la production,
-  // dont le port est fixé par infra/compose.yml.
+  // 3000 is the default port of too many things — Langfuse among them, running in a
+  // container on the dev machine. Without a fixed port Nuxt picks a free one at random and
+  // test URLs change between sessions. Override with `PORT` or `pnpm dev --port`. Production
+  // is unaffected: its port comes from infra/compose.yml.
   devServer: { port: 3001 },
   vite: {
     plugins: [tailwindcss()],
@@ -84,25 +79,21 @@ export default defineNuxtConfig({
 
   nitro: {
     prerender: {
-      // Une page statique par gare de départ : elles ne dépendent d'aucune donnée
-      // temps réel, donc le build ne sollicite pas l'API SNCF.
+      // One static page per departure station: they depend on no live data, so the build
+      // never calls the SNCF API.
       routes: ['/', '/a-propos', ...STATION_PAGES.map((s) => `/depuis/${s.slug}`)],
       crawlLinks: false,
     },
 
     /**
-     * Cache navigateur des images de `public/`.
+     * Browser cache for the images in `public/`.
      *
-     * Liste explicite plutôt qu'un motif d'extension : les motifs de `routeRules`
-     * sont résolus par radix3, qui gère les jokers de segment mais pas les
-     * suffixes de nom de fichier. Un motif du genre « toutes les URL finissant
-     * par .png » ne matcherait rien, et l'en-tête manquerait sans que rien ne le
-     * signale. Ajouter une image demande donc une ligne ici — le coût d'une règle
-     * dont on peut vérifier l'effet.
+     * An explicit list rather than an extension pattern: `routeRules` patterns are resolved
+     * by radix3, which handles segment wildcards but not filename suffixes. A "every URL
+     * ending in .png" pattern would match nothing, and the header would go missing silently.
      *
-     * 30 jours et pas `immutable` : ces noms ne portent pas de hash de contenu.
-     * Un logo remplacé doit finir par atteindre les visiteurs déjà venus, ce
-     * qu'`immutable` interdit jusqu'à expiration.
+     * 30 days and not `immutable`: these names carry no content hash, so a replaced logo has
+     * to reach returning visitors eventually — which `immutable` forbids until expiry.
      */
     routeRules: Object.fromEntries(
       CACHED_IMAGES.map((file) => [
@@ -114,8 +105,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      // URL publique de l'instance, pour les liens canoniques, le sitemap et les
-      // aperçus de partage. À définir via NUXT_PUBLIC_SITE_URL en auto-hébergement.
+      // Public URL of the instance, for canonical links, the sitemap and share previews.
+      // Set it through NUXT_PUBLIC_SITE_URL when self-hosting.
       siteUrl: SITE_URL,
     },
   },
@@ -126,7 +117,7 @@ export default defineNuxtConfig({
       title: TITLE,
       meta: [
         { name: 'description', content: DESCRIPTION },
-        // Pas de maximum-scale : bloquer le zoom empêche d'agrandir le texte.
+        // No maximum-scale: blocking zoom prevents enlarging the text.
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'theme-color', content: '#0b1f3a' },
 

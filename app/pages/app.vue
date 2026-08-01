@@ -7,16 +7,16 @@ const itinerary = useItinerary()
 const { cache: returnsCache, loading: returnsLoading, load: loadReturns } = useReturns()
 const hovered = ref<string | null>(null)
 const selectedRoute = ref(0)
-/** Destination dont la fiche est ouverte sur la carte. */
+/** Destination whose popover is open on the map. */
 const selectedDestination = ref<string | null>(null)
-/** Labels retenus par les filtres du rail ; `null` quand aucun filtre n'est actif. */
+/** Labels kept by the rail filters; `null` when no filter is active. */
 const visibleLabels = ref<string[] | null>(null)
 
-// Une nouvelle recherche invalide la sélection : la gare peut ne plus être dans les résultats.
+// A new search invalidates the selection: the station may be gone from the results.
 watch(result, () => { selectedDestination.value = null })
 
-// Filtrer jusqu'à masquer la destination ouverte laisserait sa fiche ancrée sur un marqueur
-// qui n'existe plus.
+// Filtering out the open destination would leave its popover anchored to a marker
+// that no longer exists.
 watch(visibleLabels, (labels) => {
   if (labels && selectedDestination.value && !labels.includes(selectedDestination.value)) {
     selectedDestination.value = null
@@ -25,13 +25,11 @@ watch(visibleLabels, (labels) => {
 
 const isRoute = computed(() => mode.value === 'route')
 
-// L'état de chargement de l'itinéraire est client-only (fetch côté client). On ne
-// l'expose qu'après le montage pour éviter un mismatch d'hydratation sur le bouton.
+// Itinerary loading is client-only: expose it after mount to avoid a hydration mismatch.
 const isMounted = ref(false)
 onMounted(() => (isMounted.value = true))
 const searchLoading = computed(() => isMounted.value && (isRoute.value ? itinerary.pending.value : pending.value))
 
-// Réinitialise la sélection quand un nouvel itinéraire arrive.
 watch(() => itinerary.route.value, () => { selectedRoute.value = 0 })
 
 const returnsByDest = computed(() => {
@@ -40,20 +38,14 @@ const returnsByDest = computed(() => {
   return map
 })
 
-/**
- * Sur un écran étroit, le formulaire et la carte se partagent déjà toute la hauteur : laissé
- * déplié, il ne reste plus un pixel pour les résultats. Il se replie donc en un résumé dès
- * qu'une recherche a abouti. Sur desktop la colonne est assez haute, il reste ouvert.
- */
+// On a narrow screen the form and the map already take the full height: the form collapses
+// to a summary once a search succeeds, or the results get no room at all.
 const isNarrow = ref(false)
 const formOpen = ref(true)
 
-/**
- * Sur un écran étroit, carte et liste ne tiennent pas ensemble : la carte réduite au
- * tiers de la hauteur ne séparait pas les marqueurs franciliens, et les trois
- * destinations qui restaient visibles ne faisaient pas une liste. On en montre donc
- * une seule à la fois, au choix.
- */
+// On a narrow screen map and list do not fit together: a map cut to a third of the height did
+// not separate the Paris-area markers, and the three destinations left visible did not make a
+// list. So only one shows at a time.
 const mobileView = ref<'map' | 'list'>('list')
 const MOBILE_VIEWS = [
   { key: 'map', label: 'Carte', icon: 'M12 21c4-4.6 6-7.8 6-10.5a6 6 0 1 0-12 0C6 13.2 8 16.4 12 21Zm0-9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z' },
@@ -64,14 +56,13 @@ onMounted(() => {
   const mq = window.matchMedia('(max-width: 767px)')
   isNarrow.value = mq.matches
   mq.addEventListener('change', (e) => (isNarrow.value = e.matches))
-  // Sans recherche en cours, la liste n'a qu'une phrase à afficher : la carte fait un
-  // meilleur écran d'accueil. Avec une recherche — lien partagé, retour navigateur —
-  // les résultats arrivent, autant ouvrir là où ils vont s'afficher.
+  // With no search running the list has one sentence to show, so the map makes the better
+  // landing screen. With one — shared link, browser back — results are coming, so open where
+  // they will appear.
   mobileView.value = hasQuery.value ? 'list' : 'map'
 })
-// Ne replier que sur une recherche qui a effectivement abouti : `useItinerary` étant
-// `server: false`, son résultat passe de `undefined` à `null` au montage, et ce seul
-// changement suffisait à replier un formulaire qui n'avait encore rien à résumer.
+// Only collapse on a search that actually succeeded: `useItinerary` is `server: false`, so
+// its result goes undefined → null at mount, which was enough to collapse an empty form.
 watch([result, () => itinerary.route.value], ([found, foundRoute]) => {
   if (isNarrow.value && (found || foundRoute)) formOpen.value = false
 })
@@ -79,26 +70,24 @@ function onSearch(params: Parameters<typeof search>[0]) {
   search(params)
   if (!isNarrow.value) return
   formOpen.value = false
-  // Vers la liste : c'est elle qui porte le squelette de chargement, le message d'erreur
-  // et son bouton de reprise, le décompte, le tri et les filtres. Rester sur la carte
-  // laisserait la recherche sans retour visible pendant qu'elle tourne.
+  // To the list: it carries the loading skeleton, the error and its retry button, the count,
+  // the sort and the filters. Staying on the map would leave a running search with no
+  // visible feedback.
   mobileView.value = 'list'
 }
 
-/** Sur desktop les deux affichages cohabitent ; sur écran étroit la bascule tranche. */
+/** On desktop both views coexist; on a narrow screen the toggle decides. */
 const showList = computed(() => !isNarrow.value || mobileView.value === 'list')
 /**
- * Carte recouverte par la liste : elle reste dimensionnée mais sort du parcours clavier
- * et de l'arbre d'accessibilité, sinon ses marqueurs — qui sont des boutons — restent
- * atteignables derrière la liste qui les cache.
+ * Map covered by the list: it stays sized but leaves the tab order and the accessibility tree,
+ * otherwise its markers — which are buttons — stay reachable behind the list hiding them.
  */
 const mapCovered = computed(() => isNarrow.value && showList.value)
 
 /**
- * Ouvrir une fiche depuis la liste, sur écran étroit, suppose de passer sur la carte :
- * c'est là qu'elle s'ancre, et un appui sans effet visible se lit comme une panne.
- * Et toujours sélectionner, jamais désélectionner — le second appui d'une bascule n'a
- * pas de sens quand on n'a pas vu le résultat du premier.
+ * Opening a popover from the list, on a narrow screen, means switching to the map: that is
+ * where it anchors, and a tap with no visible effect reads as a breakage. And always select,
+ * never deselect — the second tap of a toggle makes no sense when the first was never seen.
  */
 function onSelectDestination(label: string) {
   if (isNarrow.value && mobileView.value === 'list') {
@@ -109,7 +98,7 @@ function onSelectDestination(label: string) {
   selectedDestination.value = selectedDestination.value === label ? null : label
 }
 
-/** Résumé de la recherche en cours, affiché à la place du formulaire replié. */
+/** Summary of the current search, shown in place of the collapsed form. */
 const summary = computed(() => {
   const station = isRoute.value ? itinerary.from.value : origin.value
   if (!station) return null
@@ -124,10 +113,7 @@ const summary = computed(() => {
   return `${where} · ${when}`
 })
 
-/**
- * État replié, dérivé plutôt que déclaré : il exige un résumé à afficher, ce qui garantit
- * qu'un des deux affichages est toujours visible et jamais une colonne de recherche vide.
- */
+/** Derived, not declared: it requires a summary, which guarantees the column is never empty. */
 const collapsed = computed(() => isNarrow.value && !formOpen.value && Boolean(summary.value))
 
 async function onShowReturns(destLabel: string) {
@@ -135,7 +121,6 @@ async function onShowReturns(destLabel: string) {
   await loadReturns(destLabel, result.value.origin.label, result.value.date)
 }
 
-// Relance la recherche d'itinéraire sur une date suggérée.
 function onPickRouteDate(d: string) {
   search({
     mode: 'route',
@@ -146,17 +131,8 @@ function onPickRouteDate(d: string) {
   })
 }
 
-/**
- * L'application vit dans son URL (`?origin=&date=&mode=`), ce qui en fait une
- * infinité d'adresses distinctes servant la même coquille : le maillage en génère
- * déjà six cents depuis les pages gare et la page d'accueil. Sans canonique elles
- * s'indexent séparément, toutes avec le même titre et aucun contenu rendu côté
- * serveur, et diluent le budget de crawl sur des variantes vides.
- *
- * `noindex, follow` plutôt qu'une simple canonique : il n'y a rien à indexer ici
- * (les résultats sont chargés côté client), mais les liens sortants doivent
- * continuer à transmettre leur poids.
- */
+// `noindex, follow`: the app is one client-rendered shell behind hundreds of URL variants
+// (`?origin=&date=&mode=`) — nothing to index, but outgoing links still pass their weight.
 const { public: { siteUrl } } = useRuntimeConfig()
 
 useHead({
@@ -168,10 +144,9 @@ useHead({
 
 <template>
   <div class="flex h-[100dvh] flex-col bg-slate-100">
-    <!-- En-tête de l'app -->
     <header class="z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
       <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-        <!-- Décoratif : le mot « Trainquillou » suit dans le même lien. -->
+        <!-- Decorative: the name follows in the same link. -->
         <img
           src="/logo-mark.png"
           alt=""
@@ -186,32 +161,27 @@ useHead({
     </header>
 
     <!--
-      Trois blocs, deux dispositions. Sur écran étroit, la recherche en haut puis carte et
-      liste dans une seule et même cellule, superposées, la bascule flottante du bas
-      décidant laquelle est devant. Superposées et non alternées : la carte reste toujours
-      dimensionnée, ce qui compte parce que son cadrage se calcule sur la taille du
-      conteneur — masquée en `display:none` pendant qu'une recherche aboutit, elle
-      cadrerait sur 0 × 0 et reviendrait sur une vue fausse.
-      Sur desktop : la recherche en barre au-dessus des deux colonnes, résultats à gauche,
-      carte à droite. Elle traversait avant la seule colonne de gauche, où elle occupait
-      309 px de haut — davantage que la liste sous elle.
+      Three blocks, two layouts. On a narrow screen: search on top, then map and list in one
+      and the same cell, stacked, the floating toggle deciding which is in front. Stacked
+      rather than alternated, so the map stays sized at all times — its framing is computed
+      from the container size, and hidden with `display:none` while a search lands it would
+      frame on 0 × 0 and come back on a wrong view. On desktop: search as a bar above both
+      columns, results left, map right.
 
-      Les trois blocs portent un `col-start-1` explicite. Sans lui, deux éléments qui
-      demandent la même ligne sans préciser leur colonne ne se superposent pas : le
-      placement automatique crée une colonne implicite pour le second, et carte et liste
-      se retrouvaient côte à côte, chacune sur la moitié d'un écran de téléphone.
+      All three carry an explicit `col-start-1`. Without it, two items asking for the same
+      row without naming a column do not stack: auto-placement creates an implicit column
+      for the second, and map and list ended up side by side on half a phone screen each.
 
-      Et un empilement explicite, puisque ces blocs se recouvrent : carte à 0, résultats
-      à 1, suggestions de gare à 10. Le `z-0` de la carte n'est pas décoratif, il lui donne
-      un contexte d'empilement : sans lui ses propres calques — l'attribution MapLibre monte
-      à 2, la fiche de destination à 20 — remontent dans le contexte parent et repassent
-      par-dessus la liste censée les cacher.
+      Stacking is explicit too: map at 0, results at 1, station suggestions at 10. The map's
+      `z-0` is not decorative, it gives it a stacking context — without one its own layers
+      (MapLibre attribution at 2, destination popover at 20) climb into the parent context
+      and paint back over the list meant to hide them.
     -->
     <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[24rem_minmax(0,1fr)]">
-      <!-- Recherche. `relative z-10` : les suggestions de gare doivent passer par-dessus
-           la carte et la liste, ses voisines immédiates. -->
+      <!-- `relative z-10`: station suggestions must overlay the map and the list, its
+           immediate neighbours. -->
       <div class="relative z-10 col-start-1 row-start-1 border-b border-slate-100 bg-white p-3 md:col-span-2 md:border-slate-200">
-        <!-- Formulaire replié : résumé cliquable, écran étroit uniquement -->
+        <!-- Collapsed form: clickable summary, narrow screens only -->
         <button
           v-if="collapsed"
           type="button"
@@ -236,7 +206,7 @@ useHead({
         />
       </div>
 
-      <!-- Carte. Toujours montée et dimensionnée ; sur mobile la liste passe par-dessus. -->
+      <!-- Always mounted and sized; on mobile the list comes over it. -->
       <div
         class="relative z-0 col-start-1 row-start-2 md:col-start-2"
         :aria-hidden="mapCovered || undefined"
@@ -258,12 +228,9 @@ useHead({
       </div>
 
       <!--
-        Résultats. Même cellule que la carte sur mobile, donc positionnés eux aussi : un
-        bloc resté dans le flux passe sous n'importe quel frère positionné, quel que soit
-        l'ordre du DOM.
-
-        En vue carte il ne reste que la ligne d'attribution, et le reste laisse passer les
-        gestes vers la carte.
+        Same cell as the map on mobile, hence positioned too: a block left in the flow paints
+        under any positioned sibling, whatever the DOM order. In map view only the attribution
+        line remains, and the rest lets gestures through to the map.
       -->
       <aside
         class="relative z-[1] col-start-1 row-start-2 flex min-h-0 flex-col md:border-r md:border-slate-200"
@@ -297,14 +264,14 @@ useHead({
           />
         </div>
 
-        <!-- Pile du bas : la bascule flotte, l'attribution reste dans le flux. Le `relative`
-             est là pour que la première s'ancre sur la seconde. -->
+        <!-- Bottom stack: the toggle floats, the attribution stays in the flow. `relative` is
+             there so the former anchors on the latter. -->
         <div class="relative shrink-0">
           <!--
-            Bascule carte / liste, écran étroit uniquement. Flottante, donc sans coût sur la
-            hauteur utile — ce que la remontée de la recherche cherchait justement à gagner —
-            et au pouce plutôt qu'en haut de l'écran. `bottom-full` la cale juste au-dessus
-            de l'attribution au lieu de la lui faire recouvrir.
+            Map/list toggle, narrow screens only. Floating, so it costs no usable height — the
+            very thing moving the search up was meant to win — and within thumb reach rather
+            than at the top of the screen. `bottom-full` sets it just above the attribution
+            instead of letting it cover it.
           -->
           <div class="pointer-events-auto absolute bottom-full left-1/2 mb-3 -translate-x-1/2 md:hidden">
             <div
@@ -330,8 +297,8 @@ useHead({
             </div>
           </div>
 
-          <!-- Visible dans les deux affichages, en filet translucide au-dessus de la carte
-               quand c'est elle qui est devant : elle utilise les mêmes données. -->
+          <!-- Visible in both views, as a translucent strip over the map when the map is in
+               front: it uses the same data. -->
           <p class="pointer-events-auto border-t border-slate-100 bg-white/90 px-3 py-2 text-[11px] text-rail-soft/80 backdrop-blur-sm md:bg-white">
             Données <a class="underline" href="https://data.sncf.com/explore/dataset/tgvmax/" target="_blank" rel="noopener">open data SNCF</a> ·
             fond de carte <a class="underline" href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, données

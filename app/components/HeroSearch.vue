@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { todayISO, lastBookableISO } from '~~/shared/window'
 
-/**
- * Accroche de la page d'accueil : la barre de recherche elle-même, plutôt qu'un bouton
- * qui mène à elle. Un champ qui ressemble à une recherche doit chercher — un décor
- * cliquable mais impossible à remplir se lit comme une panne.
- *
- * La saisie n'est pas obligatoire : sans gare, on ouvre l'application avec la date déjà
- * posée. Le formulaire n'a donc jamais d'état invalide qui bloque le clic.
- */
+/** No field is required: without a station, /app opens with just the date. The form has
+ *  no invalid state that blocks the click. */
 const from = ref('')
 const date = ref('')
 const dateId = useId()
@@ -16,11 +10,8 @@ const dateId = useId()
 const today = todayISO()
 const lastBookable = lastBookableISO()
 
-/**
- * La date par défaut est posée au montage : calculée pendant le rendu serveur, ce serait
- * celle du serveur (UTC en production), qui désigne encore la veille entre minuit et 2 h
- * du matin en France — soit une divergence d'hydratation sur la valeur du champ.
- */
+// Default date set on mount: computed during SSR it would be the server's (UTC), which still
+// reads as yesterday between midnight and 2am in France — a hydration mismatch on the field.
 onMounted(() => (date.value = todayISO()))
 
 function submit() {
@@ -37,7 +28,6 @@ function submit() {
     class="w-full max-w-lg rounded-2xl bg-white p-2 shadow-2xl shadow-rail/40"
     @submit.prevent="submit"
   >
-    <!-- Même objet que dans l'application : un cadre unique découpé en cellules -->
     <div class="rounded-xl border border-slate-200">
       <StationInput
         v-model="from"
