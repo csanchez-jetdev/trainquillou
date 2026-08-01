@@ -12,6 +12,14 @@ import { STATION_PAGES } from './shared/stations'
  */
 const RYBBIT_SITE_ID = process.env.NUXT_PUBLIC_RYBBIT_SITE_ID ?? ''
 
+/**
+ * URL publique de l'instance. Lue à la construction, parce que les aperçus de
+ * partage l'exigent en absolu : `og:image` relatif n'est pas résolu de façon
+ * fiable par les robots de Facebook, LinkedIn, X ou Slack, et l'aperçu tombe.
+ * En auto-hébergement, définir NUXT_PUBLIC_SITE_URL avant `pnpm build`.
+ */
+const SITE_URL = (process.env.NUXT_PUBLIC_SITE_URL || 'https://trainquillou.fr').replace(/\/$/, '')
+
 const TITLE = 'Trainquillou — toutes les destinations TGVmax sur une carte'
 const DESCRIPTION
   = 'Trouvez les destinations TGVmax réservables depuis votre gare, sur une carte interactive. '
@@ -39,7 +47,7 @@ export default defineNuxtConfig({
     public: {
       // URL publique de l'instance, pour les liens canoniques, le sitemap et les
       // aperçus de partage. À définir via NUXT_PUBLIC_SITE_URL en auto-hébergement.
-      siteUrl: 'https://trainquillou.fr',
+      siteUrl: SITE_URL,
     },
   },
 
@@ -57,7 +65,7 @@ export default defineNuxtConfig({
         { property: 'og:site_name', content: 'Trainquillou' },
         { property: 'og:title', content: TITLE },
         { property: 'og:description', content: DESCRIPTION },
-        { property: 'og:image', content: '/og-image.jpg' },
+        { property: 'og:image', content: `${SITE_URL}/og-image.jpg` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
         { property: 'og:locale', content: 'fr_FR' },
@@ -65,7 +73,7 @@ export default defineNuxtConfig({
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: TITLE },
         { name: 'twitter:description', content: DESCRIPTION },
-        { name: 'twitter:image', content: '/og-image.jpg' },
+        { name: 'twitter:image', content: `${SITE_URL}/og-image.jpg` },
       ],
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: 'any' },

@@ -1,4 +1,5 @@
 import booking from './booking.json'
+import stationPages from './station-pages.json'
 
 /**
  * Table des gares, construite et vérifiée par scripts/build-booking.py.
@@ -22,20 +23,16 @@ export function bookingSlug(normalizedLabel: string): string | undefined {
 /**
  * Gares adressables par une page `/depuis/[slug]`, triées par slug.
  *
- * Plusieurs gares d'une même ville partagent un slug (Montpellier Saint-Roch et
- * Montpellier Sud de France) : on retient la première par ordre alphabétique de
- * libellé, pour que l'URL désigne toujours la même page.
+ * Sélection construite et classée par scripts/build-station-pages.py : les gares
+ * qui réunissent une demande de recherche réelle et une offre TGVmax assez large
+ * pour que la page ait quelque chose à montrer. Toutes les gares du jeu de données
+ * restent cherchables dans l'application ; seule la liste des pages est réduite.
+ *
+ * Une gare absente d'ici renvoie donc un 404 sur `/depuis/<slug>`, ce qui est
+ * l'intention : trois cents pages bâties sur le même gabarit valent moins que
+ * cinquante pages utiles, et la qualité s'apprécie à l'échelle du site.
  */
-export const STATION_PAGES: StationEntry[] = (() => {
-  const bySlug = new Map<string, string>()
-  for (const { label, slug } of Object.values(entries)) {
-    const kept = bySlug.get(slug)
-    if (!kept || label.localeCompare(kept) < 0) bySlug.set(slug, label)
-  }
-  return [...bySlug.entries()]
-    .map(([slug, label]) => ({ slug, label }))
-    .sort((a, b) => a.slug.localeCompare(b.slug))
-})()
+export const STATION_PAGES: StationEntry[] = stationPages
 
 export function stationBySlug(slug: string): StationEntry | undefined {
   return STATION_PAGES.find((s) => s.slug === slug)

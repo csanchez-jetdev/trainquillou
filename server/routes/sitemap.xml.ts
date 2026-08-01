@@ -1,13 +1,18 @@
 import { STATION_PAGES } from '~~/shared/stations'
 
-/** Sitemap : la landing, l'application, et une page par gare de départ. */
+/**
+ * Sitemap : la landing et les pages gare.
+ *
+ * `/app` en est absent volontairement : la page est en `noindex` (coquille sans
+ * contenu rendu côté serveur), et un sitemap ne doit lister que des URL qu'on
+ * demande réellement à indexer.
+ */
 export default defineEventHandler((event) => {
   const { public: { siteUrl } } = useRuntimeConfig(event)
   const base = siteUrl.replace(/\/$/, '')
 
   const urls = [
     { loc: base, priority: '1.0' },
-    { loc: `${base}/app`, priority: '0.9' },
     ...STATION_PAGES.map((s) => ({ loc: `${base}/depuis/${s.slug}`, priority: '0.7' })),
   ]
 

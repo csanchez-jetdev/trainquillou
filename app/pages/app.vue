@@ -91,7 +91,24 @@ function onPickRouteDate(d: string) {
   })
 }
 
-useHead({ title: 'Trainquillou — explorer les destinations TGVmax' })
+/**
+ * L'application vit dans son URL (`?origin=&date=&mode=`), ce qui en fait une
+ * infinité d'adresses distinctes servant la même coquille : le maillage en génère
+ * déjà six cents depuis les pages gare et la page d'accueil. Sans canonique elles
+ * s'indexent séparément, toutes avec le même titre et aucun contenu rendu côté
+ * serveur, et diluent le budget de crawl sur des variantes vides.
+ *
+ * `noindex, follow` plutôt qu'une simple canonique : il n'y a rien à indexer ici
+ * (les résultats sont chargés côté client), mais les liens sortants doivent
+ * continuer à transmettre leur poids.
+ */
+const { public: { siteUrl } } = useRuntimeConfig()
+
+useHead({
+  title: 'Trainquillou — explorer les destinations TGVmax',
+  meta: [{ name: 'robots', content: 'noindex, follow' }],
+  link: [{ rel: 'canonical', href: `${siteUrl.replace(/\/$/, '')}/app` }],
+})
 </script>
 
 <template>

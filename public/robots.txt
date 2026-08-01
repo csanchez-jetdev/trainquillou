@@ -1,8 +1,0 @@
-User-agent: *
-Allow: /
-
-# Les routes d'API renvoient du JSON : rien à indexer, et chaque appel sollicite
-# l'open data SNCF.
-Disallow: /api/
-
-Sitemap: /sitemap.xml

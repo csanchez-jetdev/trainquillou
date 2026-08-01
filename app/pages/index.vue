@@ -77,6 +77,7 @@ const base = siteUrl.replace(/\/$/, '')
 useHead({
   title: 'Trainquillou — destinations TGVmax sur une carte, gratuit et sans compte',
   link: [{ rel: 'canonical', href: base }],
+  meta: [{ property: 'og:url', content: base }],
   script: [
     {
       type: 'application/ld+json',
