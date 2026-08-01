@@ -133,9 +133,12 @@ service gratuit, sans but lucratif.
 ### Mes visites sont-elles suivies ?
 
 L'instance officielle mesure son audience avec [Rybbit](https://rybbit.com) : sans cookie, sans
-identifiant persistant, sans profil publicitaire, et sans stockage des adresses IP d'après sa
-[politique de confidentialité](https://rybbit.com/privacy). Aucun bandeau de consentement n'est
-nécessaire, faute de donnée personnelle collectée.
+identifiant persistant, sans profil publicitaire, et sans stockage des adresses IP,
+[politique de confidentialité](https://rybbit.com/privacy).
+
+Au-delà des pages vues, trois événements anonymes sont envoyés : `search` (mode, gare, nombre de
+résultats), `booking_click` (revendeur, ville, mode) et `returns_lookup` (ville). Ils indiquent
+quelles fonctionnalités servent — pas qui les utilise.
 
 Le site lui-même tourne sur un VPS OVH à Gravelines (Nord, France), sans CDN intermédiaire.
 

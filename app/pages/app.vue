@@ -23,6 +23,22 @@ watch(visibleLabels, (labels) => {
   }
 })
 
+// Search performed. `immediate`, so a shared link counts too: its result arrives in the SSR
+// payload and never triggers a change on the client.
+watch(result, (r) => {
+  if (r) track('search', { mode: r.mode, origin: r.origin.label, results: r.destinations.length })
+}, { immediate: true })
+
+watch(() => itinerary.route.value, (r) => {
+  if (!r) return
+  track('search', {
+    mode: 'route',
+    origin: r.from.label,
+    destination: r.to.label,
+    results: r.itineraries.length,
+  })
+})
+
 const isRoute = computed(() => mode.value === 'route')
 
 // Itinerary loading is client-only: expose it after mount to avoid a hydration mismatch.
@@ -118,6 +134,7 @@ const collapsed = computed(() => isNarrow.value && !formOpen.value && Boolean(su
 
 async function onShowReturns(destLabel: string) {
   if (!result.value) return
+  track('returns_lookup', { destination: destLabel })
   await loadReturns(destLabel, result.value.origin.label, result.value.date)
 }
 

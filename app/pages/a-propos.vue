@@ -190,6 +190,13 @@ useHead({
           revente, ni profilage — et donc rien à accepter dans une bannière.
         </p>
         <p class="mt-4 leading-relaxed text-rail-soft">
+          Aux pages vues s'ajoutent trois événements anonymes, qui servent à savoir quelles
+          fonctionnalités valent d'être maintenues : une recherche lancée (le mode, la gare, le
+          nombre de résultats), un clic vers un site de réservation, et une consultation des
+          dates de retour. Ni date de voyage, ni suite de recherches, ni rien qui désigne une
+          personne.
+        </p>
+        <p class="mt-4 leading-relaxed text-rail-soft">
           Le site lui-même ne demande aucun compte et n'enregistre aucune donnée personnelle : vos
           recherches vivent dans l'URL de votre navigateur, pas dans une base. Une instance
           auto-hébergée n'a par défaut aucune mesure d'audience du tout — elle s'active par

@@ -37,6 +37,10 @@ const legSlugs = computed(() => {
   return isInbound.value ? { from: other, to: hub } : { from: hub, to: other }
 })
 
+function onBook(provider: 'sncf_connect' | 'trainline') {
+  track('booking_click', { provider, destination: props.destination.label, mode: props.mode })
+}
+
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-')
   return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('fr-FR', {
@@ -188,6 +192,7 @@ function formatDate(iso: string): string {
           rel="noopener"
           data-test="popover-book-sncf"
           class="flex basis-1/2 items-center justify-center rounded-lg bg-sncf px-3 py-2 text-xs font-semibold text-white transition hover:bg-sncf-hover"
+          @click="onBook('sncf_connect')"
         >
           SNCF Connect
         </a>
@@ -197,6 +202,7 @@ function formatDate(iso: string): string {
           rel="noopener"
           data-test="popover-book-trainline"
           class="flex basis-1/2 items-center justify-center rounded-lg bg-trainline px-3 py-2 text-xs font-semibold text-white transition hover:bg-trainline-hover"
+          @click="onBook('trainline')"
         >
           Trainline
         </a>
