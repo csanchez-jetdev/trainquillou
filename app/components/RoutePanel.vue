@@ -44,7 +44,9 @@ function fmtDay(iso: string): string {
         Exploration partielle (budget d'appels atteint) : d'autres trajets à 2 correspondances peuvent exister.
       </p>
 
-      <ul v-if="route.itineraries.length" class="flex flex-col gap-2 overflow-auto pr-1">
+      <!-- `pb-14` sur mobile : de quoi faire défiler le dernier itinéraire au-dessus de la
+           bascule carte / liste, qui flotte par-dessus le bas de la liste. -->
+      <ul v-if="route.itineraries.length" class="flex flex-col gap-2 overflow-auto pr-1 pb-14 md:pb-0">
         <li
           v-for="(it, i) in route.itineraries"
           :key="i"
