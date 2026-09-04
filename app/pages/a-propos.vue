@@ -1,6 +1,4 @@
 <script setup lang="ts">
-/** Identity, method and contact: the three signals a visitor looks for before following
- *  a booking link. Prerendered (see `nitro.prerender.routes`). */
 const { public: { siteUrl } } = useRuntimeConfig()
 const base = siteUrl.replace(/\/$/, '')
 
@@ -84,8 +82,8 @@ useHead({
         <span class="text-rail">À propos</span>
       </nav>
 
-      <h1 class="text-3xl font-extrabold leading-tight sm:text-4xl">
-        À propos de <span class="text-gradient">Trainquillou</span>
+      <h1 class="font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+        À propos de <span class="text-accent-strong">Trainquillou</span>
       </h1>
 
       <p class="mt-5 text-lg leading-relaxed text-rail-soft">
@@ -98,9 +96,7 @@ useHead({
       <p class="mt-4 leading-relaxed text-rail-soft">
         Le site est développé et maintenu par <strong class="text-rail">Clément</strong>, sur son
         temps libre, et son code est public sous licence AGPL-3.0 : chacun peut le lire, le
-        vérifier, le corriger ou en faire tourner sa propre instance. Il est gratuit et le
-        restera — pas d'offre payante en préparation, pas de fonctionnalité gardée derrière un
-        compte.
+        vérifier, le corriger ou en faire tourner sa propre instance.
       </p>
 
       <section class="mt-12">
@@ -113,8 +109,9 @@ useHead({
             target="_blank"
             rel="noopener"
           >« Disponibilité à 30 jours de places MAX JEUNE et MAX SENIOR ouvertes à la réservation »</a>
-          publié par la SNCF en open data. Aucune autre origine, aucun contournement de site de
-          réservation, aucune donnée achetée.
+          publié par la SNCF en open data. La page
+          <NuxtLink to="/stats" class="font-medium text-accent-strong hover:underline">Statistiques</NuxtLink>
+          montre ce que ce jeu de données contient en ce moment.
         </p>
         <dl class="mt-6 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <div class="p-5">
@@ -152,6 +149,20 @@ useHead({
               réservation se fait sur SNCF Connect.
             </dd>
           </div>
+          <div class="p-5">
+            <dt class="font-semibold text-rail">Le tracé des voies sur la carte</dt>
+            <dd class="mt-1.5 text-sm leading-relaxed text-rail-soft">
+              Il vient d'un second jeu SNCF,
+              <a
+                class="font-medium text-accent-strong underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+                href="https://ressources.data.sncf.com/explore/dataset/vitesse-maximale-nominale-sur-ligne/"
+                target="_blank"
+                rel="noopener"
+              >« Vitesse maximale nominale sur ligne »</a> : le réseau ferré national exploité,
+              avec la vitesse de chaque tronçon, ce qui permet de dessiner les lignes à grande
+              vitesse plus épaisses. Il ne dit rien des places disponibles.
+            </dd>
+          </div>
         </dl>
       </section>
 
@@ -187,7 +198,7 @@ useHead({
           >Rybbit</a>, une mesure d'audience open source qui fonctionne
           <strong class="text-rail">sans cookie</strong>, sans identifiant persistant et sans
           stocker les adresses IP. Il n'y a ni régie publicitaire, ni traceur commercial, ni
-          revente, ni profilage — et donc rien à accepter dans une bannière.
+          revente, ni profilage.
         </p>
         <p class="mt-4 leading-relaxed text-rail-soft">
           Aux pages vues s'ajoutent trois événements anonymes, qui servent à savoir quelles

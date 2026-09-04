@@ -2,20 +2,20 @@
 import type { Destination, SearchMode } from '~~/shared/types'
 import { prettyLabel } from '~~/shared/stations'
 
-/** One result row: enough to *pick* a city, not to study it. A search commonly returns
- *  70 to 130 of them, so the detail lives in the map popover. */
 const props = defineProps<{
   destination: Destination
   mode: SearchMode
   selected?: boolean
+  /** Wide screens open the detail right under this row; narrow ones in a sheet over the map. */
+  expandable?: boolean
 }>()
 const emit = defineEmits<{ select: [string]; hover: [string | null] }>()
 
-const pop = computed(() => popularityTier(props.destination.popularity))
 const name = computed(() => prettyLabel(props.destination.label))
 
 const trains = computed(() => props.destination.trains ?? [])
 const fastest = computed(() => fastestTrip(trains.value))
+const band = computed(() => durationBand(fastest.value ? tripDurationMin(fastest.value) : null))
 const window = computed(() => departureWindow(trains.value))
 const days = computed(() => props.destination.availableDates ?? [])
 
@@ -28,11 +28,13 @@ function formatDate(iso: string): string {
 </script>
 
 <template>
-  <li>
+  <!-- `data-label`: how the rail finds this row to scroll it into view. -->
+  <li :data-label="destination.label">
     <button
       type="button"
       data-test="dest-card"
-      :aria-pressed="selected"
+      :aria-expanded="expandable ? Boolean(selected) : undefined"
+      :aria-pressed="expandable ? undefined : selected"
       :class="[
         'relative w-full px-3 py-2.5 text-left transition',
         selected ? 'bg-accent/[.07]' : 'hover:bg-slate-50',
@@ -43,21 +45,20 @@ function formatDate(iso: string): string {
       @focus="emit('hover', destination.label)"
       @blur="emit('hover', null)"
     >
-      <!-- An accent bar rather than an outline: readable out of the corner of the eye
-           while scrolling, without a box around every row. -->
       <span v-if="selected" class="absolute inset-y-0 left-0 w-[3px] bg-accent" />
 
       <div class="flex items-baseline gap-2">
         <span class="min-w-0 flex-1 truncate font-semibold text-rail">{{ name }}</span>
-        <span v-if="pop.tier > 0" :title="pop.label" class="shrink-0 text-[10px] text-amber-400">
-          {{ pop.stars }}
-        </span>
-        <!-- Navy, not teal: the accent colour is reserved for interactive state. -->
+        <!-- Swatch, not coloured text: two of the ramp's bands fall under 4.5:1 on white. -->
         <span
           v-if="fastest"
           data-test="card-duration"
-          class="shrink-0 text-sm font-bold tabular-nums text-rail"
+          class="inline-flex shrink-0 items-center gap-1.5 text-sm font-bold tabular-nums text-rail"
         >
+          <span
+            class="h-2 w-2 shrink-0 rounded-full"
+            :style="{ background: `var(--color-${band?.token ?? 'accent'})` }"
+          />
           {{ formatDuration(tripDurationMin(fastest)) }}
         </span>
         <span

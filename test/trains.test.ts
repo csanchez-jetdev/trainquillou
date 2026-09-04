@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { tripDurationMin, formatDuration, fastestTrip, departureWindow } from '~/utils/trains'
+import { tripDurationMin, formatDuration, fastestTrip, departureWindow, durationBand } from '~/utils/trains'
 import type { Train } from '~~/shared/types'
 
 function train(departure: string, arrival: string, trainNumber: string | null = null): Train {
@@ -48,6 +48,20 @@ describe('fastestTrip', () => {
 
   it('renvoie null sans horaire — le mode plage n\'en fournit aucun', () => {
     expect(fastestTrip([])).toBeNull()
+  })
+})
+
+describe('durationBand', () => {
+  it('classe par borne haute incluse', () => {
+    expect(durationBand(90)?.token).toBe('t1')
+    expect(durationBand(91)?.token).toBe('t2')
+    expect(durationBand(270)?.token).toBe('t3')
+    expect(durationBand(271)?.token).toBe('t4')
+  })
+
+  it('ne range pas une destination sans horaire dans la dernière bande', () => {
+    // Le mode plage ne fournit aucun horaire : « t4 » se lirait « très loin ».
+    expect(durationBand(null)).toBeNull()
   })
 })
 

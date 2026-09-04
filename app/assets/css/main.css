@@ -1,43 +1,81 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin-var.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/archivo-latin-var.woff2") format("woff2");
+}
+
 @theme {
-  /* Bleu nuit (texte, sections sombres) */
   --color-rail: #0b1f3a;
   --color-rail-soft: #4a6488;
-  /* Teal vif (accent principal) */
   --color-accent: #14b8b0;
   --color-accent-strong: #0e9a93;
-  /* Corail chaud (accent secondaire, pop) */
   --color-coral: #ff6b5e;
   --color-coral-strong: #ef5b4e;
-  /* Ambre (détails : notoriété, badges) */
+  /* Dark backgrounds only: 1.9:1 on the cream. */
   --color-sun: #fbbf24;
-  /* Fond crème */
   --color-cream: #fafaf7;
 
-  /*
-   * Couleurs des deux revendeurs, relevées sur leurs propres pages (styles calculés,
-   * pas une palette de seconde main) : reconnaître la destination d'un lien sortant
-   * avant de cliquer vaut mieux que deux liens soulignés identiques.
-   *
-   * `trainline` est le vert foncé de leurs propres boutons, pas le vert clair de leur
-   * logo (#00a88f) : celui-ci ne donne que 3:1 avec du texte blanc, sous le seuil AA.
-   */
   --color-sncf: #0c131f;
   --color-sncf-hover: #242a3e;
+  /* The dark green of their buttons: their logo green is only 3:1 on white. */
   --color-trainline: #00705f;
   --color-trainline-hover: #00a88f;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Outside `@theme`: Tailwind 4 prunes theme variables no generated class uses. */
+:root {
+  --color-t1: oklch(72% 0.105 190);
+  --color-t2: oklch(64% 0.130 240);
+  --color-t3: oklch(56% 0.150 278);
+  --color-t4: oklch(47% 0.150 305);
+
+  --color-q1: oklch(70% 0.09 187);
+  --color-q2: oklch(60% 0.09 187);
+  --color-q3: oklch(52% 0.09 187);
+  --color-q4: oklch(44% 0.09 187);
 }
 
 html, body, #__nuxt { height: 100%; }
 body { margin: 0; background: var(--color-cream); color: var(--color-rail); }
 
-/* Texte en dégradé teal -> corail (titres d'accent) */
-.text-gradient {
-  background-image: linear-gradient(90deg, var(--color-accent), var(--color-coral));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Outside any layer, hence above the `outline-none` the search bar fields set. */
+:where(a, button, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Negative offset: outside, the ring cut into the neighbouring separator. */
+:where(input, textarea):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  border-radius: 6px;
+}
+
+/* On the cell, not the field: on a single element, one `outline` evicts the other. */
+.tq-invalid {
+  outline: 2px solid var(--color-red-500);
+  outline-offset: -1px;
+  border-radius: 11px;
+  background: color-mix(in oklab, var(--color-red-500) 5%, white);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

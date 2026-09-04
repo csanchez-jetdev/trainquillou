@@ -51,7 +51,7 @@ function fmtDay(iso: string): string {
           :key="i"
           :data-test="'itinerary'"
           :class="[
-            'cursor-pointer rounded-xl border p-3 transition',
+            'min-w-0 cursor-pointer rounded-xl border p-3 transition',
             i === selected ? 'border-accent bg-accent/5 shadow-md' : 'border-slate-200 bg-white hover:border-accent',
           ]"
           @mouseenter="emit('select', i)"
@@ -69,21 +69,34 @@ function fmtDay(iso: string): string {
               :key="j"
               class="flex items-baseline gap-2 text-sm text-rail-soft"
             >
+              <!-- Same colour as this leg drawn on the map. -->
+              <span
+                v-if="it.legs.length > 1"
+                class="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                :style="{ background: i === selected ? legColor(j) : 'var(--color-slate-300)' }"
+              />
               <span class="tabular-nums text-rail">{{ l.departure }}</span>
               <span class="truncate">{{ l.from }}</span>
               <span class="text-slate-300">→</span>
               <span class="tabular-nums text-rail">{{ l.arrival }}</span>
               <span class="truncate">{{ l.to }}</span>
+              <span v-if="l.trainNumber" class="ml-auto shrink-0 text-xs text-rail-soft/70">
+                n°{{ l.trainNumber }}
+              </span>
             </li>
           </ol>
         </li>
       </ul>
       <p v-else class="px-1 py-3 text-rail-soft">
-        Aucun itinéraire TGVmax trouvé ce jour-là. Essayez d'augmenter le nombre de correspondances ou de changer de date.
+        Aucun itinéraire TGVmax trouvé ce jour-là.
+        <template v-if="!route.alsoAvailable?.length">
+          Aucun non plus les jours suivants, en une correspondance : essayez d'en autoriser
+          davantage.
+        </template>
       </p>
 
       <div v-if="route.alsoAvailable?.length" class="mt-1 border-t border-slate-100 pt-2">
-        <p class="px-1 text-xs text-rail-soft">Aussi possible les jours suivants :</p>
+        <p class="px-1 text-xs text-rail-soft">Autres dates possibles :</p>
         <div class="mt-1 flex flex-wrap gap-1.5 px-1">
           <button
             v-for="d in route.alsoAvailable"

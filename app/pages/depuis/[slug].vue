@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { STATION_PAGES, stationBySlug, prettyLabel } from '~~/shared/stations'
 
-/** Station landing page. Static by design: no SNCF call at build time, so 300 pages can
- *  prerender without hammering their API. Availability loads in the app itself. */
+/** No SNCF call at build time: 300 station pages prerender without hammering their API. */
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
 
@@ -13,8 +12,8 @@ if (!station.value) {
 
 const name = computed(() => prettyLabel(station.value!.label))
 const appLink = computed(() => `/app?origin=${encodeURIComponent(station.value!.label)}`)
+const statsLink = computed(() => `/stats?origin=${encodeURIComponent(station.value!.label)}`)
 
-/** A few neighbouring stations from the list, for internal linking. */
 const others = computed(() => {
   const i = STATION_PAGES.findIndex((s) => s.slug === slug.value)
   const pool = [...STATION_PAGES.slice(i + 1), ...STATION_PAGES.slice(0, i)]
@@ -88,8 +87,8 @@ useHead(() => ({
         <span class="text-rail">Depuis {{ name }}</span>
       </nav>
 
-      <h1 class="text-3xl font-extrabold leading-tight sm:text-4xl">
-        Destinations <span class="text-gradient">TGVmax</span> depuis {{ name }}
+      <h1 class="font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+        Destinations <span class="text-accent-strong">TGVmax</span> depuis {{ name }}
       </h1>
       <p class="mt-4 max-w-2xl text-lg text-rail-soft">
         Où partir depuis {{ name }} avec votre abonnement TGVmax, renommé MAX JEUNE par la SNCF ?
@@ -143,6 +142,21 @@ useHead(() => ({
             </p>
           </li>
         </ul>
+      </section>
+
+      <section class="mt-14">
+        <h2 class="text-xl font-bold sm:text-2xl">L'offre depuis {{ name }}, en chiffres</h2>
+        <p class="mt-3 max-w-2xl leading-relaxed text-rail-soft">
+          Combien de destinations sont réservables sans correspondance, quels jours et à quelles
+          heures partent les trains, et sur quelles liaisons l'offre se concentre : la page
+          Statistiques compte tout cela sur les seuls départs de {{ name }}.
+        </p>
+        <NuxtLink
+          :to="statsLink"
+          class="mt-4 inline-block font-medium text-accent-strong underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+        >
+          Voir les statistiques TGVmax depuis {{ name }}
+        </NuxtLink>
       </section>
 
       <section class="mt-14">
