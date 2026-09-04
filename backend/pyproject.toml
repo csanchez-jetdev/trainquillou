@@ -7,18 +7,13 @@ requires-python = ">=3.13"
 # dependencies; the Tasks framework did not move in 6.1 and the suite checks it.
 dependencies = [
     "django>=6.1,<6.2",
-    "django-ninja>=1.6,<2",
+    "django-ninja>=1.7,<2",
     "django-tasks-db>=0.12,<0.13",
     "requests>=2.32",
     "gunicorn>=23",
     # Serves the admin's own CSS and JS, collected at image build time.
     "whitenoise>=6.8",
 ]
-
-[tool.uv]
-# django-ninja 1.6.2 caps at `Django<6.1` by convention, not on a measured incompatibility;
-# drop this override at the first ninja release that declares 6.1.
-override-dependencies = ["django>=6.1,<6.2"]
 
 [dependency-groups]
 dev = [
