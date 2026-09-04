@@ -10,8 +10,9 @@ Gratuit, sans publicité, sans compte, sans cookie. Open source sous AGPL-3.0.
 
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-14b8b0)](LICENSE)
 [![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white)](https://nuxt.com)
+[![Django 6](https://img.shields.io/badge/Django-6-092E20?logo=django&logoColor=white)](https://www.djangoproject.com)
 [![Données open data SNCF](https://img.shields.io/badge/données-open%20data%20SNCF-0b1f3a)](https://data.sncf.com/explore/dataset/tgvmax/)
-[![Tests](https://img.shields.io/badge/tests-78%20passants-14b8b0)](test/)
+[![Tests](https://img.shields.io/badge/tests-194%20passants-14b8b0)](backend/tests/)
 
 </div>
 
@@ -50,46 +51,109 @@ Et aussi :
 - **Liens de réservation** vers SNCF Connect et Trainline.
 - **Recherches partageables** : l'URL contient toute la recherche, un lien collé rejoue le même écran.
 - **Jours de repli suggérés** quand la date demandée ne donne aucun itinéraire.
+- **Voyage en plusieurs étapes** : deux à six gares dans l'ordre, une boucle qui revient à son
+  point de départ, ou une excursion à la journée avec un temps minimum sur place. Chaque étape
+  indique les jours où elle est réservable, et le trajet complet celui qui arrive le plus tôt.
+  *Pas encore annoncé : le lien n'apparaît que si `NUXT_PUBLIC_PLANNER` est activée.*
 
 ## Démarrer
 
-Prérequis : **Node 20+** et **pnpm**.
+Deux services : l'application Nuxt et l'API Django qui la sert en données.
+Prérequis : **Node 20+**, **pnpm**, et **[uv](https://docs.astral.sh/uv/)** pour la partie Python.
 
 ```bash
 git clone https://github.com/csanchez-jetdev/trainquillou.git
 cd trainquillou
 pnpm install
-pnpm dev          # http://localhost:3001
+
+# API : migrations, puis une première ingestion de l'open data SNCF (~6 s)
+DJANGO_DEBUG=1 uv run --directory backend manage.py migrate
+DJANGO_DEBUG=1 uv run --directory backend manage.py fetch_tgvmax --now
+
+# Deux terminaux
+DJANGO_DEBUG=1 uv run --directory backend manage.py runserver 8000
+pnpm dev          # http://localhost:3001, /api/* est relayé vers le port 8000
 ```
 
-Aucune clé d'API, aucun compte, aucun fichier `.env` : l'open data SNCF est ouvert et le
-référentiel des gares est embarqué dans le dépôt.
+Aucune clé d'API, aucun compte : l'open data SNCF est ouvert et le référentiel des gares est
+embarqué dans le dépôt. `DJANGO_DEBUG=1` fournit une clé secrète de développement ; hors
+développement, son absence arrête le démarrage plutôt que de signer avec une valeur publique.
 
 ```bash
-pnpm test         # 78 tests, sans accès réseau
-pnpm build        # build de production
-pnpm preview      # prévisualiser le build
+pnpm test                              # tests TypeScript, sans accès réseau
+uv run --directory backend pytest      # tests Python, sans accès réseau
+pnpm build                             # build de production
 ```
+
+### Test de charge
+
+Locust rejoue le parcours du client sur les huit routes publiques (recherche, puis itinéraires
+et dates de retour d'une destination réellement renvoyée). Les gares et les jours interrogés
+sont lus sur l'instance visée au démarrage du tir.
+
+```bash
+cd backend
+uv run --group loadtest locust -f loadtest/locustfile.py --host http://127.0.0.1:8000
+# sans interface, 100 utilisateurs pendant une minute :
+uv run --group loadtest locust -f loadtest/locustfile.py --host http://127.0.0.1:8000 \
+  --headless -u 100 -r 20 -t 60s
+```
+
+Chaque utilisateur simulé porte sa propre adresse dans `X-Forwarded-For`, sinon le budget de
+300 requêtes par minute et par adresse refuserait le tir au bout de quelques secondes.
+`TRAINQUILLOU_SPOOF_IP=0` désactive cette usurpation, pour mesurer justement ce refus.
+Un tir contre un serveur derrière Caddy mesure le proxy et son propre étranglement : viser
+gunicorn directement pour mesurer l'API.
 
 ## S'auto-héberger
 
-Le build produit un serveur Node autonome, sans base de données ni service externe :
+Trois conteneurs : l'application Nuxt, l'API Django, et un proxy qui répartit `/api/*` vers la
+seconde et le reste vers la première. La base est un fichier SQLite sur volume, alimenté une fois
+par jour.
 
 ```bash
-pnpm build
-node .output/server/index.mjs     # écoute sur $PORT, 3000 par défaut
+docker compose -f infra/compose.yml up -d --build
+docker compose -f infra/compose.yml exec django python manage.py migrate
+docker compose -f infra/compose.yml exec django python manage.py fetch_tgvmax
 ```
 
-Placez-le derrière un reverse proxy (Caddy, nginx, Traefik) pour TLS. Le cache est en mémoire :
-un redémarrage le vide, sans conséquence. Comptez environ 200 Mo de RAM, l'essentiel étant
-l'index des 6 469 gares construit au démarrage.
+`infra/` contient le `Caddyfile`, les deux `Dockerfile`, `compose.yml` et `deploy.sh`. Comptez
+environ 700 Mo de RAM pour l'ensemble. Rien à configurer sur l'hôte : l'ingestion quotidienne se
+programme elle-même dans la file, chaque exécution armant la suivante.
 
-Deux variables d'environnement, toutes deux facultatives :
+### Administration
+
+`/admin/` donne à lire ce que l'ingestion a écrit : fraîcheur de la donnée, volumes, offres par
+jour, et l'état des dernières tâches de fond avec leur trace en cas d'échec. Tout y est en lecture
+seule, y compris pour un superutilisateur — une offre modifiée à la main serait écrasée par l'export
+suivant, et une ligne d'historique supprimée ne se retrouve pas.
+
+```bash
+docker compose -f infra/compose.yml exec django python manage.py createsuperuser
+```
+
+Le proxy place une authentification HTTP devant `/admin/`, indépendante de celle de Django : le
+formulaire de connexion n'est jamais atteignable directement. `deploy.sh` génère ces identifiants
+au premier déploiement et les affiche une seule fois.
+
+**La base est le seul état non reconstructible du projet.** Les offres du jour se réingèrent en
+quelques secondes, mais l'historique de disponibilité accumulé jour après jour, non : l'amont est
+une fenêtre glissante de 30 jours. Chaque ingestion en écrit donc une copie compressée dans
+`sauvegardes/`, sur le volume, et garde les trente dernières. Sur le même disque que la base :
+cela protège d'une migration ratée ou d'une suppression, pas de la perte du disque — une copie
+hors serveur reste à brancher.
 
 | Variable | Effet |
 |---|---|
+| `DJANGO_SECRET_KEY` | **Requise** hors développement, sinon l'API refuse de démarrer |
+| `DJANGO_ALLOWED_HOSTS` | Noms d'hôtes acceptés, séparés par des virgules |
+| `DJANGO_DB_PATH` | Chemin du fichier SQLite |
+| `DJANGO_BACKUP_DIR` | Où l'ingestion dépose ses copies (défaut : `sauvegardes/` à côté de la base) |
 | `NUXT_PUBLIC_SITE_URL` | URL publique, pour les liens canoniques et le sitemap |
 | `NUXT_PUBLIC_RYBBIT_SITE_ID` | Active la mesure d'audience [Rybbit](https://rybbit.io) avec **votre** identifiant. Non définie, aucun script tiers n'est chargé |
+| `NUXT_PUBLIC_RYBBIT_HOST` | Instance Rybbit qui sert le script et reçoit les mesures (défaut : `https://app.rybbit.io`, le service hébergé) |
+| `BACKEND_URL` | En développement seulement : où le serveur Nuxt relaie `/api/*` (défaut `http://127.0.0.1:8000`) |
+| `NUXT_PUBLIC_PLANNER` | `true` affiche le lien vers le planificateur multi-étapes. Sans elle, la page reste joignable par son URL mais n'est liée de nulle part. Activée d'office en développement |
 
 La licence AGPL-3.0 vous autorise à héberger votre propre instance, y compris modifiée, à
 condition de publier vos modifications.
@@ -122,8 +186,10 @@ page vide qui ressemblerait à une panne.
 
 ### Les disponibilités sont-elles en temps réel ?
 
-Elles viennent du dataset open data SNCF `tgvmax`, mis à jour par la SNCF, et sont mises en cache
-10 minutes par recherche. Une place peut donc partir entre l'affichage et votre réservation.
+Elles viennent du dataset open data SNCF `tgvmax`, que la SNCF republie une fois par jour, vers
+04h30 UTC. Trainquillou l'ingère chaque matin et sert ses réponses depuis cette copie : interroger
+l'amont plus souvent ne donnerait rien de plus récent. Une place peut donc partir entre l'affichage
+et votre réservation.
 
 ### Faut-il créer un compte ?
 
@@ -166,8 +232,10 @@ le code source de votre version, y compris si vous ne la distribuez que comme se
 
 ## API
 
-Le client ne parle qu'à ces routes, jamais directement à la SNCF — pour le CORS, le cache et un
-format stable. Elles sont utilisables telles quelles si vous auto-hébergez.
+Le client ne parle qu'à ces routes, jamais directement à la SNCF — pour le CORS et un format
+stable. Elles lisent la base locale, jamais l'amont : une recherche répond en moins d'une
+milliseconde. Utilisables telles quelles si vous auto-hébergez, et décrites en OpenAPI sur
+`/api/openapi.json`.
 
 | Route | Description |
 |---|---|
@@ -175,6 +243,8 @@ format stable. Elles sont utilisables telles quelles si vous auto-hébergez.
 | `GET /api/search?origin=&date=&mode=&dateTo=` | Destinations réservables, enrichies des coordonnées |
 | `GET /api/returns?origin=&dest=&from=` | Dates de retour disponibles pour un trajet |
 | `GET /api/route?from=&to=&date=&stops=` | Itinéraires avec correspondances |
+| `GET /api/multileg?stops=A\|B\|C&date=&dateTo=&minStay=` | Voyage en plusieurs étapes, boucle, excursion |
+| `GET /api/health` | État du service et de sa base |
 
 `mode` vaut `from` (défaut), `to`, `roundtrip` ou `range`. Les modes `roundtrip` et `range`
 exigent `dateTo`.
@@ -185,7 +255,13 @@ curl 'http://localhost:3001/api/search?origin=LYON%20(intramuros)&date=2026-08-1
 
 ## Architecture
 
-**Nuxt 4** · **Vue 3** · **TypeScript strict** · **Tailwind v4** · **MapLibre GL** · **Nitro** · **pnpm**
+**Nuxt 4** · **Vue 3** · **TypeScript strict** · **Tailwind v4** · **MapLibre GL** — pour l'interface
+**Django 6** · **Django Ninja** · **SQLite** — pour l'API et l'ingestion quotidienne
+
+Personne n'interroge l'open data SNCF pendant qu'un visiteur attend : un export quotidien
+(35 000 à 45 000 offres, six secondes) alimente une base locale que toutes les routes lisent.
+C'est aussi ce stockage qui donne un historique de disponibilité, là où l'amont est une fenêtre
+glissante de 30 jours.
 
 Le détail des choix et de leurs raisons est dans [docs/architecture.md](docs/architecture.md).
 
@@ -195,12 +271,13 @@ endpoint qui tronque silencieusement la liste des gares aux deux tiers.
 
 ## Scripts de données
 
-Deux tables sont pré-calculées hors ligne et commitées, pour que l'application n'ait aucune
+Trois jeux sont pré-calculés hors ligne et commités, pour que l'application n'ait aucune
 dépendance réseau à l'exécution. À relancer ponctuellement, ces données évoluent lentement.
 
 ```bash
-uv run scripts/build-popularity.py   # score de notoriété touristique par gare
-uv run scripts/build-booking.py      # slugs de ville pour les liens de réservation
+uv run scripts/build-popularity.py     # score de notoriété touristique par gare
+uv run scripts/build-booking.py        # slugs de ville pour les liens de réservation
+uv run scripts/build-rail-network.py   # tracé du réseau ferré, fond de la carte
 ```
 
 Ils nécessitent [uv](https://docs.astral.sh/uv/) ; les dépendances sont déclarées dans l'en-tête
@@ -232,26 +309,28 @@ Les contributions sont bienvenues. Quelques conventions :
 
 - **Commits conventionnels** (`feat:`, `fix:`, `docs:`, `chore:`).
 - TypeScript strict, pas de `any` silencieux.
-- La logique pure va dans `server/utils/` et se teste sans réseau. Les tests ne doivent jamais
-  appeler l'API SNCF : utilisez les fixtures de `test/fixtures/`.
+- La logique pure va dans `backend/tgvmax/` et se teste sans réseau. Les tests ne doivent jamais
+  appeler l'API SNCF : utilisez les fixtures de `backend/tests/fixtures/`.
 - Pas de paywall, pas d'authentification, pas de publicité, pas de profilage publicitaire.
   Ce n'est pas négociable, c'est la raison d'être du projet. La mesure d'audience de l'instance
   officielle est sans cookie et désactivée par défaut dans le code.
 
-Avant d'ouvrir une PR : `pnpm test && pnpm build`.
+Avant d'ouvrir une PR : `pnpm test && pnpm build && uv run --directory backend pytest`.
 
 ## Données et attributions
 
 - Disponibilités TGVmax : [open data SNCF, dataset `tgvmax`](https://data.sncf.com/explore/dataset/tgvmax/).
 - Coordonnées des gares : référentiel SNCF « liste des gares ».
+- Tracé des voies sur la carte : [open data SNCF, dataset `vitesse-maximale-nominale-sur-ligne`](https://ressources.data.sncf.com/explore/dataset/vitesse-maximale-nominale-sur-ligne/) —
+  le réseau ferré national exploité, avec la vitesse de chaque tronçon.
 - Coordonnées d'appoint (gares étrangères, arrêts hors référentiel) :
   [OpenStreetMap](https://www.openstreetmap.org/copyright) via Nominatim.
 - Score de notoriété : nombre d'éditions linguistiques Wikipédia de la commune.
 - Fond de carte : OpenStreetMap, rendu MapLibre GL.
 
 Les jeux de données SNCF sont diffusés sous **ODbL** : attribution obligatoire et partage à
-l'identique des bases dérivées. Les fichiers de `server/assets/` qui en dérivent restent sous
-ODbL, indépendamment de la licence du code.
+l'identique des bases dérivées. Les fichiers qui en dérivent — `backend/tgvmax/data/` et
+`public/rail-network.geojson` — restent sous ODbL, indépendamment de la licence du code.
 
 ## Licence
 

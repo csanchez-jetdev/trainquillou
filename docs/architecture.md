@@ -4,42 +4,62 @@ Comment Trainquillou est construit, et pourquoi.
 
 ## Principe directeur
 
-**Le client ne parle jamais directement à l'open data SNCF.** Toutes les requêtes passent par
-des routes serveur Nitro (`/api/*`) qui proxifient, mettent en cache et normalisent les données.
+**Personne n'interroge l'open data SNCF pendant qu'un visiteur attend.** Un export quotidien
+alimente une base locale ; les routes `/api/*` ne lisent que cette base.
 
 Trois raisons :
 
-1. **CORS** — l'API SNCF n'est pas conçue pour être appelée depuis un navigateur tiers.
-2. **Cache** — une même recherche est servie depuis la mémoire au lieu de retaper l'amont.
+1. **La donnée amont ne change qu'une fois par jour**, vers 04h30 UTC. L'interroger à chaque
+   recherche coûtait jusqu'à 56 appels HTTP pour une question d'itinéraire, et ne rendait
+   rien de plus récent qu'une copie du matin.
+2. **L'historique n'existe que si on l'écrit.** Le jeu de données amont est une fenêtre
+   glissante de 30 jours : ce qui n'a pas été enregistré le jour où il était visible a
+   disparu. C'est ce qui rend possible les tendances de disponibilité.
 3. **Format stable** — si l'API SNCF change de version ou de schéma, un seul fichier bouge
-   (`server/utils/sncf.ts`) et le front n'est pas touché.
+   (`backend/tgvmax/sncf.py`) et ni le front ni les autres routes ne sont touchés.
+4. **CORS** — l'API SNCF n'est de toute façon pas appelable depuis le navigateur.
 
 ## Vue d'ensemble
 
 ```
 Navigateur (Nuxt 4 / Vue 3)
-  SearchBar ── ResultsRail ── MapView (MapLibre GL)  ── RoutePanel
+  SearchBar ── ResultsRail ── MapView (MapLibre GL) ── RoutePanel ── Planificateur
         │
-        │  useSearch / useStations / useReturns / useItinerary
+        │  useSearch / useStations / useReturns / useItinerary / useMultileg
         │  (l'URL est la source de vérité : ?origin=&date=&mode=)
         ▼
-Serveur Nitro — routes /api/*
-        │  defineCachedEventHandler (TTL 10 min ; 6 h pour les gares)
-        ▼
-  server/utils/sncf.ts ─────────────► API Explore SNCF v2.1 (dataset tgvmax)
-  server/utils/coords.ts ───────────► gares.json (référentiel SNCF, embarqué)
-  server/utils/popularity.ts ──────► popularity.json (scores pré-calculés)
-  server/utils/routing.ts ─────────► recherche d'itinéraires avec correspondances
+Proxy (Caddy) ─── /api/* ──► API Django          reste ──► serveur Nitro (pages)
+                               │
+                               │  tgvmax/api.py (Django Ninja)
+                               ▼
+   tgvmax/search.py ─────────► les quatre modes de recherche
+   tgvmax/routing.py ────────► itinéraires avec correspondances
+   tgvmax/multileg.py ───────► voyages en plusieurs étapes
+   tgvmax/stations.py ───────► coordonnées (gares.json, référentiel embarqué)
+   tgvmax/lookups.py ───────► notoriété et slugs de réservation (pré-calculés)
+                               │
+                               ▼
+                        SQLite (Offer, AvailabilityChange, Station)
+                               ▲
+                               │  tgvmax/ingest.py, une fois par jour
+                        API Explore SNCF v2.1 (export du dataset tgvmax)
 ```
 
 ## Routes serveur
 
-| Route | Rôle | TTL cache |
+| Route | Rôle | Cache |
 |---|---|---|
-| `GET /api/stations` | Libellés de gares pour l'autocomplétion | 6 h |
-| `GET /api/search?origin=&date=&mode=&dateTo=` | Destinations réservables, enrichies des coordonnées | 10 min |
-| `GET /api/returns?origin=&dest=&from=` | Dates de retour disponibles pour un trajet | 10 min |
-| `GET /api/route?from=&to=&date=&stops=` | Itinéraires A → B avec correspondances | 10 min |
+| `GET /api/stations` | Libellés de gares pour l'autocomplétion | — |
+| `GET /api/search?origin=&date=&mode=&dateTo=` | Destinations réservables, enrichies des coordonnées | — |
+| `GET /api/returns?origin=&dest=&from=` | Dates de retour disponibles pour un trajet | — |
+| `GET /api/route?from=&to=&date=&stops=` | Itinéraires A → B avec correspondances | — |
+| `GET /api/multileg?stops=A\|B\|C&date=&dateTo=&minStay=` | Voyage en plusieurs étapes, boucle, excursion | — |
+| `GET /api/stats?origin=` | Agrégats de l'offre réservable, pour la page publique | 10 min |
+| `GET /api/updated` | Date du dernier relevé et part éligible, pour l'accueil | 10 min |
+| `GET /api/health` | État du service et de sa base | — |
+
+Toutes lisent la base locale et répondent en quelques millisecondes ; seule `/api/stats`, dont
+deux agrégats balaient la table entière, justifie un cache.
 
 `/api/search` porte quatre modes :
 
@@ -48,11 +68,9 @@ Serveur Nitro — routes /api/*
 - `roundtrip` — quelles destinations ont l'aller **et** le retour réservables ?
 - `range` — sur une plage de dates, quelles destinations et combien de jours chacune.
 
-Le mode `roundtrip` mérite un mot, parce qu'il paraît coûteux et ne l'est pas. L'aller donne
-les trains hub → X. Pour le retour, on réutilise `fetchInbound` **sur le hub** : ces
-enregistrements arrivent au hub, donc leur champ `origine` désigne justement la destination
-candidate. Il ne reste qu'à intersecter les deux ensembles. Deux appels amont, comme une
-recherche simple.
+Le mode `roundtrip` paraît coûteux et ne l'est pas. L'aller donne les trains hub → X ; le
+retour se lit sur les trajets qui **arrivent** au hub, dont le champ `origine` désigne
+justement la destination candidate. Deux requêtes indexées, comme une recherche simple.
 
 ## La grammaire de recherche
 
@@ -82,8 +100,8 @@ Deux conséquences dans le code (`app/components/SearchBar.vue`) :
   Un formulaire vide ne pouvant pas exprimer « je cherche à l'envers », l'intention reçue de
   l'URL (`/app?mode=to`) survit jusqu'à la première saisie.
 
-Le mode n'étant plus nommé nulle part, une ligne sous le formulaire dit ce que la recherche
-va faire. C'était le reproche fait aux onglets : ils nommaient un mode sans l'expliquer.
+Le mode n'étant nommé nulle part, une ligne sous le formulaire dit ce que la recherche va
+faire.
 
 ## Liste et carte : une seule réponse
 
@@ -101,10 +119,10 @@ de défilement, dont deux liens de réservation par ligne.
 
 ## Pages d'entrée par gare
 
-`/depuis/[slug]` est une page statique par gare de départ, pré-rendue au build (304 pages).
-Elles ne contiennent **aucune donnée temps réel** : uniquement du contenu, du maillage interne
-et des liens vers l'application. C'est délibéré — pré-rendre 304 pages qui interrogeraient
-l'open data SNCF reviendrait à marteler leur API à chaque build.
+`/depuis/[slug]` est une page statique par gare de départ, pré-rendue au build. Elles ne
+contiennent **aucune donnée temps réel** : uniquement du contenu, du maillage interne et des
+liens vers l'application. La liste des gares qui en méritent une vient de
+`shared/station-pages.json`, calculé par `scripts/build-station-pages.py`.
 
 Les slugs viennent de `shared/booking.json`, la même table que les liens de réservation.
 
@@ -174,18 +192,19 @@ formulaire, chaque champ gare exclut la valeur de l'autre de ses suggestions.
 Le dataset `tgvmax` liste **tous** les trains, pas seulement ceux ouverts à la réservation
 TGVmax. Un seul champ compte :
 
-```ts
-if (record.od_happy_card !== 'OUI') continue  // pas de place TGVmax sur ce train
+```
+where=od_happy_card="OUI"
 ```
 
-Oublier ce filtre fait afficher des trains que l'abonnement ne couvre pas. Il est appliqué à la
-fois côté requête (`refine=od_happy_card:OUI`) et côté groupement, par sécurité.
+Oublier ce filtre fait afficher des trains que l'abonnement ne couvre pas. Il est appliqué à
+l'export amont, donc une offre n'entre dans la base que parce qu'elle était réservable : elle
+cesse de l'être en disparaissant d'un export suivant, jamais par un drapeau.
 
 ## Coordonnées des gares
 
 Les libellés du dataset `tgvmax` (`"PARIS (intramuros)"`) et ceux du référentiel des gares
 (`"Paris-Gare-de-Lyon"`) ne correspondent presque jamais à l'identique. La résolution se fait en
-quatre temps (`server/utils/stations.ts`), du plus sûr au moins sûr :
+quatre temps (`backend/tgvmax/stations.py`), du plus sûr au moins sûr :
 
 1. **Normalisation** en une clé commune aux deux référentiels : sans accent, sans casse, sans
    ponctuation, `Saint` ramené sur l'abréviation `St`, et le marqueur `(intramuros)` retiré.
@@ -207,30 +226,35 @@ Ne rien renvoyer est un choix assumé : une gare sans coordonnées est **quand m
 les résultats, simplement sans marqueur sur la carte. Un point manquant se remarque à peine ; un
 point à 600 km décrédibilise toute la carte.
 
-Les 103 libellés du dataset se résolvent aujourd'hui sans passer par le repli, et un test le
-vérifie. Si SNCF ajoute un libellé, ce test échoue — le signal qu'il faut lui ajouter un alias
-plutôt que laisser l'heuristique deviner.
+Les 341 libellés du dataset se résolvent aujourd'hui sans que le repli décide seul, et un test
+le vérifie. Si SNCF ajoute un libellé, ce test échoue — le signal qu'il faut lui ajouter un
+alias plutôt que laisser l'heuristique deviner.
 
-## Recherche d'itinéraires (`server/utils/routing.ts`)
+## Recherche d'itinéraires (`backend/tgvmax/routing.py`)
 
 Quand il n'existe aucun TGVmax direct entre A et B, on compose un trajet avec jusqu'à 3 gares
 intermédiaires. L'algorithme est un parcours en largeur *time-dependent* :
 
-- on part de `outbound(A)`, et le **dernier saut** vers B est résolu via l'index `inbound(B)` —
-  d'où le coût de seulement 2 appels amont pour 0 ou 1 correspondance ;
+- une requête indexée ramène tous les trajets réservables du jour, puis la marche est en
+  mémoire : on part des départs de A, et le **dernier saut** vers B est résolu via un index
+  des arrivées à B ;
 - une correspondance n'est valable que si le départ suit l'arrivée d'au moins `MIN_TRANSFER`
   (10 min), les réservations TGVmax étant indépendantes les unes des autres ;
-- l'expansion est bornée par un budget d'appels (`FETCH_BUDGET`) et élaguée par dominance
-  (on ne garde que la meilleure arrivée par gare, puis les `FRONTIER_CAP` meilleures) ;
-- un itinéraire est renvoyé par « forme de trajet » (jeu de gares intermédiaires), le plus rapide
-  pour cette forme.
+- une ville que le référentiel nomme d'un seul libellé pour plusieurs gares (`PARIS`, `LYON`
+  et `LILLE (intramuros)`) impose sa marge à elle (`CITY_TRANSFER`) : la correspondance peut
+  y demander de traverser la ville, et le jeu de données ne dit pas de quelle gare il s'agit ;
+- l'expansion est élaguée par dominance (on ne garde que la meilleure arrivée par gare, puis
+  les `FRONTIER_CAP` meilleures) ;
+- un itinéraire est renvoyé par heure de départ, le plus rapide partant à cette minute-là, et
+  la liste est chronologique. Regrouper par gares intermédiaires ramenait toute une journée de
+  trains à un seul « via Paris ».
 
-Quand la date demandée ne donne rien, `feasibleNextDays` sonde les 3 jours suivants en 2 appels
-par jour pour suggérer des dates qui marchent.
+Quand la date demandée ne donne rien, `feasible_next_days` parcourt toute la fenêtre réservable
+en deux requêtes indexées pour suggérer les 3 prochaines dates qui marchent.
 
 ## Score de notoriété
 
-`server/assets/popularity.json` associe à chaque gare un score dérivé du nombre d'éditions
+`backend/tgvmax/data/popularity.json` associe à chaque gare un score dérivé du nombre d'éditions
 linguistiques de la page Wikipédia de sa commune — un proxy gratuit et sans clé de l'intérêt
 touristique. Il alimente le tri « par notoriété » du rail de résultats.
 
@@ -255,12 +279,17 @@ sur `useState`. **Pas de Pinia** : le besoin ne le justifie pas.
 | Store | `useState` + composables | Pas assez d'état partagé pour justifier Pinia |
 | Coordonnées | Référentiel embarqué | Pas d'appel réseau ni de clé pour géocoder ; index construit une fois au démarrage |
 | Notoriété | Wikipédia pré-calculé | Gratuit, sans clé, et calculé hors ligne plutôt qu'à chaque requête |
+| Backend | Django 6 + Django Ninja | Le propriétaire du projet est plus à l'aise en Python, et la logique la plus délicate (résolution des gares, BFS temporel) y est mieux maintenue sur la durée |
+| Base | SQLite sur volume | Un écrivain par jour et des lectures : le profil exact où SQLite suffit. Aucun conteneur ni port de plus à durcir |
+| File de tâches | django-tasks-db | Le cadre Tasks n'a ni backend base ni worker, en 6.0 comme en 6.1 ; ce paquet fournit les deux dans la même base |
+| Planification | La tâche s'auto-programme | Aucun planificateur dans Django, mais `run_after` existe : chaque exécution arme la suivante. Rien à installer sur l'hôte, donc rien qu'un déploiement puisse oublier |
+| Sauvegarde | Écrite par l'ingestion | Elle suit la seule écriture de la journée au lieu d'être une seconde minuterie qui espère assez d'écart |
+| Fenêtre réservable | Déduite des données | Un `MIN`/`MAX` indexé plutôt qu'une constante de 30 jours : si l'horizon amont change, l'API suit sans modification |
 
 ## Ce que le projet n'est pas
 
 Pas d'authentification, pas de comptes, pas de paiement, pas de publicité. Ce n'est pas un
-oubli : c'est la raison d'être de cette réécriture. La v1 de l'application avait un paywall qui
-limitait le nombre de recherches ; v2 s'en débarrasse et ne le réintroduira pas.
+oubli : c'est la raison d'être du projet, et ça ne changera pas.
 
 L'instance officielle mesure son audience avec Rybbit — sans cookie, sans identifiant
 persistant, sans profil publicitaire, hébergé dans l'UE. `NUXT_PUBLIC_RYBBIT_SITE_ID` est vide
@@ -277,5 +306,11 @@ réservation se fait sur SNCF Connect.
 pnpm test
 ```
 
-La logique pure (normalisation de libellés, matching, groupement) est isolée dans `server/utils/`
-et testée sans réseau. Les routes serveur se testent sur fixtures, jamais contre l'API réelle.
+```bash
+uv run --directory backend pytest
+```
+
+La logique pure (normalisation de libellés, matching, groupement, itinéraires) est isolée dans
+`backend/tgvmax/` et testée sans réseau, y compris contre les 341 libellés réels du dataset. Ce
+qui reste côté TypeScript (`shared/normalize.ts`, `shared/window.ts`, `app/utils/trains.ts`) garde
+ses tests Vitest.
