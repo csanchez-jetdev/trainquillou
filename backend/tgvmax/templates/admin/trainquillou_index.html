@@ -1,0 +1,98 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+  {% if stale_days is None %}
+    <p class="errornote">
+      Aucune offre en base : l'ingestion n'a jamais abouti. Voir les tâches ci-dessous.
+    </p>
+  {% else %}
+    {% if stale_days > 1 %}
+      <p class="errornote">
+        Dernière ingestion il y a {{ stale_days }} jours. Un jour d'historique manqué ne se
+        rattrape pas — l'amont est une fenêtre glissante de 30 jours. Vérifier la minuterie
+        et le worker.
+      </p>
+    {% endif %}
+
+    <div class="module">
+      <h2>Ingestion</h2>
+      <table>
+        <tr>
+          <th scope="row">Dernière</th>
+          <td>
+            {{ ingested_last|date:"l j F Y" }}
+            ({% if stale_days == 0 %}aujourd'hui{% elif stale_days == 1 %}hier{% else %}il y a {{ stale_days }} jours{% endif %})
+          </td>
+        </tr>
+        <tr><th scope="row">Première</th><td>{{ ingested_first|date:"l j F Y" }}</td></tr>
+        {% if failed_tasks %}
+          <tr><th scope="row">Tâches en échec</th><td>{{ failed_tasks }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+
+    <div class="module">
+      <h2>Volumes</h2>
+      <table>
+        <tr>
+          <th scope="row">Offres</th>
+          <td>{{ window.offers }} réservables sur {{ total_offers }} observées</td>
+        </tr>
+        <tr><th scope="row">Gares</th><td>{{ total_stations }}</td></tr>
+        <tr>
+          <th scope="row">Fenêtre réservable</th>
+          <td>{{ window.first|date:"d/m/Y" }} → {{ window.last|date:"d/m/Y" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Changements</th>
+          <td>
+            {{ changes.total }} — {{ changes.sold_out }} complets,
+            {{ changes.reopened }} rouverts
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="module">
+      <h2>Offres réservables par jour</h2>
+      <table>
+        <thead><tr><th scope="col">Jour</th><th scope="col">Offres</th></tr></thead>
+        <tbody>
+          {% for day in daily %}
+            <tr><th scope="row">{{ day.date|date:"D d/m" }}</th><td>{{ day.offers }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  <div class="module">
+    <h2>Dernières tâches</h2>
+    {% if recent_tasks %}
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Enfilée</th><th scope="col">Tâche</th>
+            <th scope="col">État</th><th scope="col">Retour</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in recent_tasks %}
+            <tr>
+              <th scope="row">{{ task.enqueued_at|date:"d/m/Y H:i" }}</th>
+              <td>{{ task.task_name }}</td>
+              <td>{{ task.get_status_display }}</td>
+              <td>{{ task.return_value|default_if_none:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="errornote">
+        Aucune tâche enregistrée : la minuterie n'a jamais enfilé d'ingestion.
+      </p>
+    {% endif %}
+  </div>
+
+  {{ block.super }}
+{% endblock %}

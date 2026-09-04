@@ -9,6 +9,18 @@ dist
 # Node dependencies
 node_modules
 
+# Backend Python: environment, caches, local development database
+backend/.venv
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+backend/db.sqlite3
+backend/db.sqlite3-*
+backend/.coverage
+# pytest's in-memory SQLite leaves this behind under its URI name
+backend/file:memorydb_default*
+
 # Logs
 logs
 *.log
@@ -18,7 +30,7 @@ logs
 .fleet
 .idea
 
-# Outillage d'assistance : local, jamais partagé
+# Agent tooling: local, never shared
 CLAUDE.md
 AGENTS.md
 .agents/
@@ -27,10 +39,10 @@ AGENTS.md
 skills-lock.json
 .playwright-mcp
 
-# Déploiement : propre à l'hébergeur, contient des réglages nominatifs
+# Deployment: host-specific, holds personal settings
 infra/
 
-# Cache local des scripts de build (régénérable)
+# Build script cache, regenerable
 scripts/.booking-cache.json
 
 # Local env files

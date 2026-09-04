@@ -3,10 +3,9 @@
 # dependencies = ["requests"]
 # ///
 """
-Construit server/assets/popularity.json : pour chaque gare TGVmax, un score de
+Construit backend/tgvmax/data/popularity.json : pour chaque gare TGVmax, un score de
 notoriété touristique = nombre d'éditions linguistiques de Wikipédia de la ville
 (proxy gratuit, sans clé ; les lieux très touristiques ont beaucoup de versions).
-Construit server/assets/popularity.json.
 
 Pipeline (toutes sources publiques, sans clé) :
   1. labels TGVmax  (facettes origine ∪ destination de l'open data SNCF)
@@ -27,7 +26,7 @@ import requests
 SNCF = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax"
 UA = "trainquillou-build/1.0 (+https://github.com/csanchez-jetdev/trainquillou)"
 
-ASSETS_DIR = Path(__file__).parent.parent / "server" / "assets"
+ASSETS_DIR = Path(__file__).parent.parent / "backend" / "tgvmax" / "data"
 
 
 def clean(s: str) -> str:
@@ -151,7 +150,7 @@ def main() -> None:
     (ASSETS_DIR / "popularity.json").write_text(
         json.dumps(sorted_pop, ensure_ascii=False, separators=(",", ":")) + "\n"
     )
-    print(f"{len(sorted_pop)} gares scorées -> server/assets/popularity.json")
+    print(f"{len(sorted_pop)} gares scorées -> backend/tgvmax/data/popularity.json")
     print(f"Top 8 : {list(sorted_pop.items())[:8]}")
 
 

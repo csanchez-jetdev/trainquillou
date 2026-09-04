@@ -6,7 +6,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Un push qui en suit un autre sur la même référence annule l'exécution précédente.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -23,27 +22,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Lit la version de pnpm dans le champ `packageManager` de package.json,
-      # et met en cache le store pour les exécutions suivantes.
+      # No version pinned here: it comes from the `packageManager` field of package.json.
       - uses: pnpm/action-setup@v6
         with:
           cache: true
 
       - uses: actions/setup-node@v7
         with:
-          # Même majeure que l'image d'exécution en production. La machine de dev
-          # peut être en avance, pas la CI.
+          # Same major as the production runtime image.
           node-version: 24
 
-      # Le `postinstall` du projet lance `nuxt prepare`, qui génère `.nuxt/` :
-      # le lint (config @nuxt/eslint générée) et le typecheck en dépendent.
+      # `postinstall` runs `nuxt prepare`: lint and typecheck need the generated `.nuxt/`.
       - name: Install
         id: install
         run: pnpm install --frozen-lockfile
 
-      # Les quatre vérifications tournent même si l'une échoue : un seul aller-retour
-      # suffit à voir tout ce qui ne va pas. Elles sont en revanche sautées si
-      # l'installation a échoué, où elles n'échoueraient que par ricochet.
+      # Every check runs even when another fails, none of them when the install failed.
       - name: Lint
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm lint
@@ -56,9 +50,51 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm test
 
-      # Compile check : le build prérend `/` et les ~300 pages `/depuis/*`, donc il
-      # attrape les erreurs de rendu serveur qu'aucun test unitaire ne voit.
-      # Aucune image ni registry en jeu — `.output/` est jeté avec le runner.
+      # The build prerenders ~300 pages: it catches server-render errors no test sees.
       - name: Build
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm build
+
+  backend:
+    name: Backend Django
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          # No Python version pinned: uv installs the one `requires-python` asks for.
+          working-directory: backend
+
+      - name: Install
+        id: install
+        run: uv sync --frozen --directory backend
+
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run --directory backend ruff check .
+
+      - name: Format
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run --directory backend ruff format --check .
+
+      - name: Tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run --directory backend pytest -q
+
+      # A model changed without its migration passes the tests and breaks the deploy.
+      - name: Migrations à jour
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        env:
+          DJANGO_DEBUG: '1'
+        run: uv run --directory backend python manage.py makemigrations --check --dry-run
+
+      - name: Réglages de production
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        env:
+          DJANGO_SECRET_KEY: ci-seulement-jamais-deploye-mais-assez-longue-pour-le-check
+          DJANGO_ALLOWED_HOSTS: trainquillou.fr
+        run: uv run --directory backend python manage.py check --deploy --fail-level WARNING

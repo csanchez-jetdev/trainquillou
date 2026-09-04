@@ -1,0 +1,43 @@
+[project]
+name = "trainquillou-backend"
+version = "0.1.0"
+requires-python = ">=3.13"
+
+# django-tasks-db only claims up to 6.0 in its classifiers, with no upper bound in its
+# dependencies; the Tasks framework did not move in 6.1 and the suite checks it.
+dependencies = [
+    "django>=6.1,<6.2",
+    "django-ninja>=1.6,<2",
+    "django-tasks-db>=0.12,<0.13",
+    "requests>=2.32",
+    "gunicorn>=23",
+    # Serves the admin's own CSS and JS, collected at image build time.
+    "whitenoise>=6.8",
+]
+
+[tool.uv]
+# django-ninja 1.6.2 caps at `Django<6.1` by convention, not on a measured incompatibility;
+# drop this override at the first ninja release that declares 6.1.
+override-dependencies = ["django>=6.1,<6.2"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "ruff>=0.9",
+]
+# Apart from the dev group: locust pulls gevent and a web UI neither the suite nor the
+# image needs.
+loadtest = ["locust>=2.32"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "trainquillou.test_settings"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]

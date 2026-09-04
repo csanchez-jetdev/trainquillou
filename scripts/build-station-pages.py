@@ -31,7 +31,7 @@ import requests
 SNCF = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax"
 
 ROOT = Path(__file__).parent.parent
-ASSETS_DIR = ROOT / "server" / "assets"
+ASSETS_DIR = ROOT / "backend" / "tgvmax" / "data"
 SHARED_DIR = ROOT / "shared"
 
 # Nombre de pages publiées.

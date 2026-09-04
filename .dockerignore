@@ -1,5 +1,13 @@
-# Liste blanche : tout est exclu, seul .output/ est envoyé au démon Docker.
-# Sans ça, un build lancé depuis la racine du dépôt y expédierait node_modules
-# et .git, soit plusieurs centaines de Mo pour une image qui n'en copie que 12.
+# Allowlist: everything is excluded, only .output/, backend/ and shared/ are sent
 *
 !.output
+!backend
+!shared
+
+# Python sources: environment, local database and tests stay out
+backend/.venv
+backend/db.sqlite3*
+backend/**/__pycache__
+backend/.pytest_cache
+backend/.ruff_cache
+backend/tests
