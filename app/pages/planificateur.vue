@@ -6,18 +6,12 @@ const { stops, date, dateTo, minStay, hasQuery, result, pending, message, plan }
 const MAX_STOPS = 6
 
 const draft = ref<string[]>(stops.value.length >= 2 ? [...stops.value] : ['', ''])
-const draftDate = ref(date.value)
+const first = todayISO()
+const last = lastBookableISO()
+
+const draftDate = ref(date.value || first)
 const draftDateTo = ref(dateTo.value)
 const draftStay = ref(Number(minStay.value) || 0)
-
-// `todayISO()` reads the local timezone, the server runs in UTC: they disagree until 2am.
-const first = ref('')
-const last = ref('')
-onMounted(() => {
-  first.value = todayISO()
-  last.value = lastBookableISO()
-  if (!draftDate.value) draftDate.value = first.value
-})
 
 const canSubmit = computed(
   () => draft.value.filter(Boolean).length >= 2 && Boolean(draftDate.value),

@@ -7,12 +7,14 @@ const from = ref('')
 const date = ref('')
 const dateId = useId()
 
-const today = todayISO()
-const lastBookable = lastBookableISO()
-
-// Default date set on mount: computed during SSR it would be the server's (UTC), which still
-// reads as yesterday between midnight and 2am in France — a hydration mismatch on the field.
-onMounted(() => (date.value = todayISO()))
+// Set on mount: this page is prerendered, so at setup these would freeze on the build day.
+const today = ref('')
+const lastBookable = ref('')
+onMounted(() => {
+  today.value = todayISO()
+  lastBookable.value = lastBookableISO()
+  date.value = today.value
+})
 
 function submit() {
   const origin = from.value.trim()

@@ -173,8 +173,17 @@ que comme une règle du produit. `shared/window.ts` porte la borne, utilisée de
   plutôt que refusée — sans quoi `mode=range` déclencherait un appel amont par jour dans le
   vide, jusqu'à une centaine de requêtes inutiles sur l'API publique.
 
-`todayISO()` calcule la date locale et non `toISOString()` : en France l'été, entre minuit
-et 2 h du matin, la date UTC désigne encore la veille, et le champ proposerait un jour passé.
+`todayISO()` lit l'heure de **Paris** via `Intl`, et non celle de la machine : la fenêtre est
+une règle SNCF en heure française, et le rendu serveur — un conteneur en UTC — doit produire la
+même date que le navigateur, où que soit le visiteur. Sans cela, entre minuit et 2 h du matin en
+France, le serveur rendait la veille et le navigateur le jour même : le champ affichait deux
+dates différentes avant et après hydratation. L'ajout des 30 jours se fait en arithmétique
+calendaire et non en millisecondes, qu'un changement d'heure décalerait d'un jour.
+
+Le formulaire propose `J+30` dès minuit à Paris, alors que la base ne contient ce jour qu'après
+l'ingestion de 05 h 15 UTC : le dernier jour du sélecteur renvoie un 400 pendant les quelques
+heures qui les séparent. La fenêtre faisant autorité est celle des données, pas celle de
+l'horloge ; l'exposer dans `/api/updated` reste à faire.
 
 ## Une ville n'est pas sa propre destination
 
