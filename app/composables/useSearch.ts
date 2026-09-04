@@ -13,7 +13,6 @@ export function useSearch() {
     const m = route.query.mode
     return m === 'to' || m === 'range' || m === 'roundtrip' || m === 'route' ? m : 'from'
   })
-  /** Modes that need a second date: range exploration, or return date. */
   const needsDateTo = computed(() => mode.value === 'range' || mode.value === 'roundtrip')
   const hasQuery = computed(() => Boolean(origin.value && date.value))
 
@@ -33,7 +32,8 @@ export function useSearch() {
         },
       })
     },
-    { watch: [origin, date, dateTo, mode] },
+    // Client-only: `/api/*` is the Django backend, reachable from the browser, not Nitro.
+    { watch: [origin, date, dateTo, mode], server: false, lazy: true },
   )
 
   function search(params: {

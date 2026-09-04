@@ -3,6 +3,7 @@ import type { ReturnDatesResult } from '~~/shared/types'
 export function useReturns() {
   const cache = reactive<Record<string, ReturnDatesResult>>({})
   const loading = ref<string | null>(null)
+  const { push: toast } = useToasts()
 
   async function load(originOfReturn: string, destOfReturn: string, from: string) {
     const key = `${originOfReturn}|${destOfReturn}|${from}`
@@ -14,6 +15,9 @@ export function useReturns() {
       })
       cache[key] = res
       return res
+    } catch {
+      toast('Impossible de récupérer les dates de retour.', 'error')
+      return null
     } finally {
       loading.value = null
     }

@@ -1,7 +1,7 @@
 import { STATION_PAGES } from '~~/shared/stations'
 
 /**
- * The landing page, "À propos" and the station pages.
+ * The landing page, "À propos", the statistics page and the station pages.
  *
  * `/app` is deliberately absent: it is `noindex` (a shell with no server-rendered content),
  * and a sitemap should only list URLs we actually ask to have indexed.
@@ -13,6 +13,7 @@ export default defineEventHandler((event) => {
   const urls = [
     { loc: base, priority: '1.0' },
     { loc: `${base}/a-propos`, priority: '0.5' },
+    { loc: `${base}/stats`, priority: '0.6' },
     ...STATION_PAGES.map((s) => ({ loc: `${base}/depuis/${s.slug}`, priority: '0.7' })),
   ]
 
