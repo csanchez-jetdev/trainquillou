@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import maplibregl from 'maplibre-gl'
+import { LngLatBounds, MapLibreMap, Popup } from 'maplibre-gl'
+import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { NetworkLink, NetworkStation } from '~~/shared/types'
 import type { Point, RailCollection, RailGraph } from '~/utils/rail-path'
@@ -62,7 +63,7 @@ function heatWeight(field: 'offers' | 'soldOut') {
   const peak = Math.max(sorted.at(-1) ?? 0, high + 1)
   return [
     'interpolate', ['linear'], ['get', field], 0, 0, mid, 0.25, high, 0.6, peak, 1,
-  ] as unknown as maplibregl.ExpressionSpecification
+  ] as unknown as ExpressionSpecification
 }
 
 /** GeoJSON is [lon, lat]; the API answers [lat, lon] everywhere. */
@@ -119,8 +120,8 @@ function stationFeatures() {
 }
 
 const instance = getCurrentInstance()
-let map: maplibregl.Map | null = null
-let popup: maplibregl.Popup | null = null
+let map: MapLibreMap | null = null
+let popup: Popup | null = null
 
 const LAYERS: Record<Mode, string[]> = {
   links: ['links', 'stations'],
@@ -153,7 +154,7 @@ onMounted(async () => {
   const container = root?.querySelector<HTMLElement>('.network-inner')
   if (!container) return
 
-  map = new maplibregl.Map({
+  map = new MapLibreMap({
     container,
     style: MAP_STYLE,
     // Framed on the stations below; these only decide what shows while the tiles load.
@@ -162,7 +163,7 @@ onMounted(async () => {
     attributionControl: { compact: true },
   })
 
-  const bounds = new maplibregl.LngLatBounds()
+  const bounds = new LngLatBounds()
   for (const station of props.stations) bounds.extend([station.coords[1], station.coords[0]])
   if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 28, animate: false })
 
@@ -227,7 +228,7 @@ onMounted(async () => {
       },
     })
 
-    popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
+    popup = new Popup({ closeButton: false, closeOnClick: false, offset: 8 })
     for (const layer of ['links', 'stations']) {
       map.on('mousemove', layer, (event) => {
         const feature = event.features?.[0]
@@ -250,7 +251,7 @@ onMounted(async () => {
     // Straight lines first: the network weighs 459 ko and routing it takes a few seconds.
     const network = await $fetch<RailCollection>(RAIL_NETWORK)
     const routed = await linkFeatures(buildRailGraph(network.features))
-    map?.getSource<maplibregl.GeoJSONSource>('links')?.setData(routed)
+    map?.getSource<GeoJSONSource>('links')?.setData(routed)
   })
 })
 

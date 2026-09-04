@@ -42,11 +42,6 @@ export default defineNuxtConfig({
   devServer: { port: 3001 },
   vite: {
     plugins: [tailwindcss()],
-    optimizeDeps: {
-      include: [
-        'maplibre-gl', // CJS
-      ],
-    },
   },
 
   nitro: {

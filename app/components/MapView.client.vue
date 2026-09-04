@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import maplibregl from 'maplibre-gl'
-import type { LineLayerSpecification } from 'maplibre-gl'
+import { LngLatBounds, MapLibreMap, Marker } from 'maplibre-gl'
+import type { GeoJSONSource, LineLayerSpecification, PaddingOptions } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { SearchResult, RouteResult } from '~~/shared/types'
 import type { RailCollection, RailGraph, RailTree, Point } from '~/utils/rail-path'
@@ -50,13 +50,13 @@ const ROUND = { 'line-cap': 'round', 'line-join': 'round' } as const
 const NO_LINES: RailLines = { type: 'FeatureCollection', features: [] }
 
 const instance = getCurrentInstance()
-let map: maplibregl.Map | null = null
+let map: MapLibreMap | null = null
 let sizeObserver: ResizeObserver | null = null
 // Not `map.loaded()`: it returns false during a camera animation, long after `load` fired.
 let styleReady = false
 // The selection watcher never fires when a result lands under an already open destination.
 let keepSelectionFramed = false
-const markers = new Map<string, maplibregl.Marker>()
+const markers = new Map<string, Marker>()
 
 let network: RailCollection | null = null
 let graph: RailGraph | null = null
@@ -80,7 +80,7 @@ function lines(paths: Point[][]): RailLines {
 }
 
 function setLines(id: 'rail' | 'trip', data: RailLines) {
-  map?.getSource<maplibregl.GeoJSONSource>(id)?.setData(data)
+  map?.getSource<GeoJSONSource>(id)?.setData(data)
 }
 
 async function addRailNetwork() {
@@ -177,7 +177,7 @@ onMounted(async () => {
   const container = root?.querySelector<HTMLElement>('.map-inner')
   if (!container) { console.error('[MapView] .map-inner not found', root?.outerHTML?.slice(0, 100)); return }
   try {
-    map = new maplibregl.Map({
+    map = new MapLibreMap({
       container,
       style: MAP_STYLE,
       center: [2.4, 46.5],
@@ -228,7 +228,7 @@ function clearMarkers() {
 }
 
 /** A flat padding exceeds the width of a phone, leaving a negative usable width. */
-function fitPadding(): maplibregl.PaddingOptions {
+function fitPadding(): PaddingOptions {
   const el = map?.getContainer()
   const x = Math.min(60, Math.round((el?.clientWidth ?? 480) / 8))
   const y = Math.min(60, Math.round((el?.clientHeight ?? 480) / 8))
@@ -257,8 +257,8 @@ function renderRoute(route: RouteResult, selected: number) {
 
   const a = route.from.coords
   const b = route.to.coords
-  if (a) markers.set('__a__', new maplibregl.Marker({ element: dot('#0b1f3a', 18) }).setLngLat([a[1], a[0]]).addTo(map))
-  if (b) markers.set('__b__', new maplibregl.Marker({ element: dot('#ff6b5e', 18) }).setLngLat([b[1], b[0]]).addTo(map))
+  if (a) markers.set('__a__', new Marker({ element: dot('#0b1f3a', 18) }).setLngLat([a[1], a[0]]).addTo(map))
+  if (b) markers.set('__b__', new Marker({ element: dot('#ff6b5e', 18) }).setLngLat([b[1], b[0]]).addTo(map))
 
   const it = route.itineraries[selected]
   const pts: [number, number][] = []
@@ -269,7 +269,7 @@ function renderRoute(route: RouteResult, selected: number) {
       pts.push(c)
       if (i > 0 && i < nodes.length - 1) {
         const el = dot('#14b8b0', 14)
-        markers.set(`__via_${i}__`, new maplibregl.Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
+        markers.set(`__via_${i}__`, new Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
       }
     }
   } else {
@@ -278,7 +278,7 @@ function renderRoute(route: RouteResult, selected: number) {
   }
 
   if (pts.length > 1) {
-    const bounds = new maplibregl.LngLatBounds()
+    const bounds = new LngLatBounds()
     pts.forEach((p) => bounds.extend([p[1], p[0]]))
     map.fitBounds(bounds, { padding: fitPadding(), maxZoom: 8, duration: 800 })
   }
@@ -303,7 +303,7 @@ function render(result: SearchResult | null | undefined) {
     const el = document.createElement('div')
     el.style.cssText = 'width:18px;height:18px;background:#0b1f3a;border-radius:50%;border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45);box-sizing:border-box'
     el.title = result.origin.label
-    markers.set('__origin__', new maplibregl.Marker({ element: el }).setLngLat([o[1], o[0]]).addTo(map))
+    markers.set('__origin__', new Marker({ element: el }).setLngLat([o[1], o[0]]).addTo(map))
   }
 
   const shown = shownDestinations()
@@ -332,7 +332,7 @@ function render(result: SearchResult | null | undefined) {
       event.stopPropagation()
       emit('select', props.selected === d.label ? null : d.label)
     })
-    const marker = new maplibregl.Marker({ element: el })
+    const marker = new Marker({ element: el })
       .setLngLat([d.coords[1], d.coords[0]])
       .addTo(map)
     markers.set(d.label, marker)
@@ -344,7 +344,7 @@ function render(result: SearchResult | null | undefined) {
   const focus = keepSelectionFramed ? selectedDest.value?.coords : null
   const pts = (focus ? [o, focus] : [o, ...shown.map((d) => d.coords)]).filter(Boolean) as [number, number][]
   if (pts.length > 1) {
-    const b = new maplibregl.LngLatBounds()
+    const b = new LngLatBounds()
     pts.forEach((p) => b.extend([p[1], p[0]]))
     map.fitBounds(b, { padding: fitPadding(), maxZoom: 8, duration: 800 })
   }
