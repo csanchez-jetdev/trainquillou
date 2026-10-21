@@ -123,7 +123,7 @@ useHead({
         <div class="mt-3 flex flex-wrap gap-3 text-sm">
           <button
             type="button"
-            class="font-medium text-accent-strong hover:underline disabled:text-slate-400 disabled:no-underline"
+            class="font-medium text-accent-strong hover:underline disabled:text-slate-500 disabled:no-underline"
             :disabled="draft.length >= MAX_STOPS"
             @click="addStop"
           >
@@ -175,7 +175,7 @@ useHead({
         <button
           type="submit"
           :disabled="!canSubmit"
-          class="mt-5 w-full rounded-xl bg-accent px-4 py-3 font-semibold text-white transition hover:bg-accent-strong disabled:bg-slate-300"
+          class="mt-5 w-full rounded-xl bg-accent-strong px-4 py-3 font-semibold text-white transition hover:bg-rail disabled:bg-slate-300"
         >
           Chercher le voyage
         </button>

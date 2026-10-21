@@ -29,6 +29,22 @@ export interface SearchResult {
   destinations: Destination[] // connected stations (destinations, or origins in `to` mode)
 }
 
+/** One day the pair is bookable on, summarised. */
+export interface LiaisonDay {
+  date: string // YYYY-MM-DD
+  trains: number // direct trains that day
+  first: string // "HH:MM", earliest departure
+  fastestMin: number // shortest trip that day, in minutes
+}
+
+export interface LiaisonResult {
+  origin: string
+  destination: string
+  days: LiaisonDay[]
+  next: { date: string; trains: Train[] } | null // the soonest bookable day, in full
+  returnDates: string[] // YYYY-MM-DD the way back is bookable on
+}
+
 export interface ReturnDatesResult {
   origin: string
   destination: string
@@ -160,5 +176,5 @@ export interface RouteResult {
   date: string // YYYY-MM-DD
   maxStops: number
   itineraries: Itinerary[] // sorted by increasing duration
-  alsoAvailable: string[] // next days (YYYY-MM-DD) of the window with a trip in ≤1 connection
+  alsoAvailable: string[] // other days (YYYY-MM-DD) of the window with a trip in ≤1 connection
 }

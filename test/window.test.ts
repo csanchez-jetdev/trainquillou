@@ -5,6 +5,7 @@ import {
   lastBookableISO,
   isBookable,
   clampToWindow,
+  nextWeekendISO,
 } from '~~/shared/window'
 
 // Instants UTC explicites : construites en heure locale, ces dates feraient dépendre le
@@ -38,6 +39,19 @@ describe('fenêtre de réservation', () => {
     expect(lastBookableISO(new Date('2026-12-20T12:00:00Z'))).toBe('2027-01-19')
     expect(todayISO(new Date('2026-12-31T23:30:00Z'))).toBe('2027-01-01')
     expect(lastBookableISO(new Date('2026-12-31T23:30:00Z'))).toBe('2027-01-31')
+  })
+
+  it('vise le vendredi qui vient, et le dimanche avec lui', () => {
+    // 2026-08-01 est un samedi : le week-end en cours a commencé, on passe au suivant.
+    expect(nextWeekendISO(NOON)).toEqual(['2026-08-07', '2026-08-09'])
+    // Un vendredi reste lui-même.
+    expect(nextWeekendISO(new Date('2026-08-07T10:00:00Z'))).toEqual(['2026-08-07', '2026-08-09'])
+    // Le dimanche vise le vendredi cinq jours plus loin.
+    expect(nextWeekendISO(new Date('2026-08-09T10:00:00Z'))).toEqual(['2026-08-14', '2026-08-16'])
+    // Un vendredi de fin de mois : le dimanche bascule sur le mois suivant.
+    expect(nextWeekendISO(new Date('2026-10-30T10:00:00Z'))).toEqual(['2026-10-30', '2026-11-01'])
+    // Après minuit à Paris, c'est déjà le jour suivant qui compte.
+    expect(nextWeekendISO(AFTER_MIDNIGHT)).toEqual(['2026-09-11', '2026-09-13'])
   })
 
   it('accepte les bornes et refuse ce qui les dépasse', () => {

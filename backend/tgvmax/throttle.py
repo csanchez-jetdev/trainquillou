@@ -19,6 +19,23 @@ COST: dict[str, int] = {}
 MAX_TRACKED = 20_000
 
 
+# Le nom de service par lequel le rendu serveur joint Django sur le réseau Docker.
+INTERNAL_HOSTS = ("django",)
+
+
+def is_internal(request: HttpRequest) -> bool:
+    """
+    Whether the caller is the site's own server-side rendering, not a client of it.
+
+    Two signals, both only true from inside: the request names Django by its Docker service
+    name rather than the site's domain, and it carries no `X-Forwarded-For` — Caddy writes
+    that header on every public call to `/api/*`, overwriting whatever the client sent.
+    """
+    if request.META.get("HTTP_X_FORWARDED_FOR"):
+        return False
+    return (request.META.get("HTTP_HOST") or "").split(":")[0] in INTERNAL_HOSTS
+
+
 def client_ip(request: HttpRequest) -> str:
     """The peer address."""
     # Only sound behind a proxy that replaces X-Forwarded-For rather than appending to it:
@@ -36,7 +53,7 @@ class RateLimitMiddleware:
         self._buckets: dict[str, list[float]] = {}
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        if not request.path.startswith("/api/"):
+        if not request.path.startswith("/api/") or is_internal(request):
             return self.get_response(request)
 
         ip = client_ip(request)

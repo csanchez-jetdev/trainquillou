@@ -105,6 +105,9 @@ REFERENCE_DATA_DIR = Path(os.environ.get("TRAINQUILLOU_DATA_DIR", BASE_DIR / "tg
 # Booking slugs stay in the shared tree: the prerendered station pages import the same file.
 BOOKING_DATA_DIR = Path(os.environ.get("TRAINQUILLOU_BOOKING_DIR", BASE_DIR.parent / "shared"))
 
+# Les polices du site, lues telles quelles pour dessiner les images de partage.
+FONT_DIR = Path(os.environ.get("TRAINQUILLOU_FONT_DIR", BASE_DIR.parent / "public" / "fonts"))
+
 # Next to the database, so the one writable volume holds both.
 BACKUP_DIR = Path(
     os.environ.get("DJANGO_BACKUP_DIR", Path(DATABASES["default"]["NAME"]).parent / "sauvegardes")

@@ -95,7 +95,7 @@ onBeforeUnmount(stop)
         <span class="rounded-lg px-2.5 py-1.5 text-sm font-medium ring-1 ring-slate-200">
           Paris <span class="text-rail-soft">· sam. 8 août</span>
         </span>
-        <span class="rounded-lg bg-coral px-3 py-1.5 text-sm font-semibold text-white">
+        <span class="rounded-lg bg-coral-strong px-3 py-1.5 text-sm font-semibold text-white">
           Voir les destinations
         </span>
       </div>

@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { seoDescription, seoTitle } from '~~/shared/seo'
 const { public: { siteUrl } } = useRuntimeConfig()
 const base = siteUrl.replace(/\/$/, '')
 
-const title = 'À propos de Trainquillou — qui, comment, avec quelles données'
-const description
-  = 'Qui maintient Trainquillou, d\'où viennent les disponibilités TGVmax / MAX JEUNE, '
-    + 'à quelle fréquence elles sont rafraîchies, où le site est hébergé et comment nous joindre.'
+const title = seoTitle('À propos : méthode, données et sources')
+const description = seoDescription(
+  'Qui maintient Trainquillou, d\'où viennent les disponibilités TGVmax (MAX JEUNE) et à quelle '
+  + 'fréquence elles sont rafraîchies.',
+  'Où le site est hébergé, et comment nous joindre.',
+)
 
 useHead({
   title,
@@ -52,28 +55,7 @@ useHead({
 
 <template>
   <div class="min-h-[100dvh] bg-cream text-rail">
-    <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-4xl items-center justify-between px-5 py-4 sm:px-8">
-        <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-          <!-- Decorative: the name follows in the same link. -->
-          <img
-            src="/logo-mark.png"
-            alt=""
-            aria-hidden="true"
-            width="32"
-            height="32"
-            class="h-8 w-8 object-contain"
-          >
-          Trainquillou
-        </NuxtLink>
-        <div class="flex items-center gap-4">
-          <GithubLink class="text-rail-soft transition hover:text-rail" />
-          <NuxtLink to="/app" class="text-sm font-medium text-accent-strong hover:underline">
-            Ouvrir l'application →
-          </NuxtLink>
-        </div>
-      </div>
-    </header>
+    <SiteHeader />
 
     <main class="mx-auto max-w-3xl px-5 py-12 sm:px-8">
       <nav aria-label="Fil d'ariane" class="mb-6 text-sm text-rail-soft">
@@ -247,17 +229,13 @@ useHead({
         <h2 class="relative text-2xl font-bold text-white">Voir où vous pouvez partir</h2>
         <NuxtLink
           to="/app"
-          class="relative mt-5 inline-block rounded-xl bg-coral px-8 py-3 font-semibold text-white shadow-lg shadow-coral/40 transition hover:-translate-y-0.5 hover:bg-coral-strong"
+          class="relative mt-5 inline-block rounded-xl bg-coral-strong px-8 py-3 font-semibold text-white shadow-lg shadow-coral/40 transition hover:-translate-y-0.5 hover:bg-coral-ink"
         >
           Ouvrir la carte →
         </NuxtLink>
       </div>
     </main>
 
-    <footer class="border-t border-slate-200 py-8">
-      <div class="mx-auto max-w-3xl px-5 text-center text-sm text-rail-soft sm:px-8">
-        <NuxtLink to="/" class="underline hover:text-rail">Retour à l'accueil</NuxtLink>
-      </div>
-    </footer>
+    <SiteFooter />
   </div>
 </template>

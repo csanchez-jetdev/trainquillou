@@ -4,7 +4,7 @@ import type { GeoJSONSource, LineLayerSpecification, PaddingOptions } from 'mapl
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { SearchResult, RouteResult } from '~~/shared/types'
 import type { RailCollection, RailGraph, RailTree, Point } from '~/utils/rail-path'
-import { MAP_STYLE, RAIL_NETWORK, styleBaseMap } from '~/utils/basemap'
+import { MAP_LOCALE, MAP_STYLE, RAIL_NETWORK, styleBaseMap } from '~/utils/basemap'
 import { prettyLabel } from '~~/shared/stations'
 
 type RailLines = {
@@ -184,9 +184,13 @@ onMounted(async () => {
       zoom: 5,
       // Attribution comes from the source TileJSON: declaring it here would duplicate it.
       attributionControl: { compact: true },
+      locale: MAP_LOCALE,
       // Replaced by our own size tracking below.
       trackResize: false,
     })
+    // Markers included: the list carries the same destinations as real buttons.
+    map.getCanvasContainer().setAttribute('aria-hidden', 'true')
+    map.getCanvas().tabIndex = -1
 
     // MapLibre's own tracking discards the first ResizeObserver notification, often the only one.
     let lastSize = ''
@@ -257,8 +261,8 @@ function renderRoute(route: RouteResult, selected: number) {
 
   const a = route.from.coords
   const b = route.to.coords
-  if (a) markers.set('__a__', new Marker({ element: dot('#0b1f3a', 18) }).setLngLat([a[1], a[0]]).addTo(map))
-  if (b) markers.set('__b__', new Marker({ element: dot('#ff6b5e', 18) }).setLngLat([b[1], b[0]]).addTo(map))
+  if (a) markers.set('__a__', new Marker({ element: dot('var(--color-rail)', 18) }).setLngLat([a[1], a[0]]).addTo(map))
+  if (b) markers.set('__b__', new Marker({ element: dot('var(--color-coral)', 18) }).setLngLat([b[1], b[0]]).addTo(map))
 
   const it = route.itineraries[selected]
   const pts: [number, number][] = []
@@ -268,7 +272,7 @@ function renderRoute(route: RouteResult, selected: number) {
     for (const [i, c] of nodes.entries()) {
       pts.push(c)
       if (i > 0 && i < nodes.length - 1) {
-        const el = dot('#14b8b0', 14)
+        const el = dot('var(--color-accent)', 14)
         markers.set(`__via_${i}__`, new Marker({ element: el }).setLngLat([c[1], c[0]]).addTo(map))
       }
     }
@@ -301,7 +305,7 @@ function render(result: SearchResult | null | undefined) {
   const o = result.origin.coords
   if (o) {
     const el = document.createElement('div')
-    el.style.cssText = 'width:18px;height:18px;background:#0b1f3a;border-radius:50%;border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45);box-sizing:border-box'
+    el.style.cssText = 'width:18px;height:18px;background:var(--color-rail);border-radius:50%;border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45);box-sizing:border-box'
     el.title = result.origin.label
     markers.set('__origin__', new Marker({ element: el }).setLngLat([o[1], o[0]]).addTo(map))
   }
@@ -378,9 +382,8 @@ watch(() => [props.hovered, props.selected], applyMarkerStyles)
 
 <template>
   <div class="h-full w-full">
-    <!-- `aria-hidden`: the list carries the same destinations as real buttons. -->
     <!-- inline style: outranks maplibregl-map {position:relative} -->
-    <div class="map-inner" aria-hidden="true" style="position:absolute;inset:0;" />
+    <div class="map-inner" style="position:absolute;inset:0;" />
 
     <!-- Top on a narrow screen: the page's attribution strip covers the bottom of the map. -->
     <ul

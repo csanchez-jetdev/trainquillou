@@ -148,7 +148,7 @@ const hubName = computed(() => (props.result ? prettyLabel(props.result.origin.l
 const noun = computed(() => (props.result?.mode === 'to' ? 'origine' : 'destination'))
 
 // Narrow enough that the three duration chips and their counts hold one row at 360 px.
-const CHIP = 'rounded-full border px-1.5 py-1 text-xs font-medium transition'
+const CHIP = 'rounded-full border px-1.5 py-1.5 text-xs font-medium transition md:py-1'
 // A refused request (400, bad station or date) is not a failure to retry: show what it says.
 const refusal = computed(() => {
   const e = props.error as { statusCode?: number; data?: { detail?: unknown } } | null
@@ -156,7 +156,7 @@ const refusal = computed(() => {
   return e?.statusCode === 400 && typeof detail === 'string' ? detail : null
 })
 
-const CHIP_ON = 'border-accent bg-accent text-white'
+const CHIP_ON = 'border-accent-strong bg-accent-strong text-white'
 const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-300 hover:text-rail'
 </script>
 
@@ -192,7 +192,7 @@ const CHIP_OFF = 'border-slate-200 bg-white text-rail-soft hover:border-slate-30
             v-model="sortBy"
             data-test="sort"
             aria-label="Trier les résultats"
-            class="cursor-pointer appearance-none rounded-md bg-transparent py-0.5 pl-1.5 pr-5 text-xs font-medium text-rail-soft outline-none transition hover:text-rail"
+            class="-my-1.5 cursor-pointer appearance-none rounded-md bg-transparent py-2 pl-1.5 pr-5 text-xs font-medium text-rail-soft outline-none transition hover:text-rail"
           >
             <option value="default">{{ isRange ? 'Jours' : 'A → Z' }}</option>
             <option v-if="!isRange" value="duration">Durée</option>

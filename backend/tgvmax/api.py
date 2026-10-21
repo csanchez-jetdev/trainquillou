@@ -4,12 +4,12 @@ from typing import Annotated, Literal
 
 from django.core.cache import cache
 from django.db import connections
-from django.http import HttpRequest
+from django.http import Http404, HttpRequest, HttpResponse
 from ninja import NinjaAPI, Query, Schema
 from ninja.errors import ValidationError
 from pydantic import AfterValidator, Field
 
-from . import multileg, routing, search, stats
+from . import multileg, og, routing, search, stats
 from .catalog import bookable_window, canonical, last_ingested, station_labels
 from .stations import is_station_label, lookup_coords, station_key
 
@@ -67,6 +67,12 @@ class SearchParams(Schema):
 
 
 class ReturnsParams(Schema):
+    origin: StationLabel
+    dest: StationLabel
+    since: Date = Field(alias="from")
+
+
+class LiaisonParams(Schema):
     origin: StationLabel
     dest: StationLabel
     since: Date = Field(alias="from")
@@ -176,12 +182,59 @@ def return_dates(request: HttpRequest, params: Query[ReturnsParams]):
     }
 
 
+@api.get("/liaison")
+def liaison_detail(request: HttpRequest, params: Query[LiaisonParams]):
+    """One pair, both directions: the bookable days, the soonest day's trains, the returns."""
+    origin = canonical(params.origin)
+    destination = canonical(params.dest)
+    if origin is None or destination is None:
+        return _unknown(
+            request,
+            *[
+                label
+                for label, resolved in ((params.origin, origin), (params.dest, destination))
+                if resolved is None
+            ],
+        )
+    if station_key(origin) == station_key(destination):
+        return _refuse(request, "le départ et l'arrivée doivent différer")
+    return search.liaison(origin, destination, params.since)
+
+
+@api.get("/og.png")
+def share_image(request: HttpRequest, params: Query[LiaisonParams]):
+    """
+    The image a pasted liaison link shows, drawn from the day's figures.
+
+    Cached on the pair and the date asked for: the page quotes the ingestion day in the URL,
+    so a social network that keeps its own copy still fetches a new one each morning.
+    """
+    origin = canonical(params.origin)
+    destination = canonical(params.dest)
+    if origin is None or destination is None or station_key(origin) == station_key(destination):
+        raise Http404("liaison inconnue")
+
+    digest = sha1(
+        f"{origin}|{destination}|{params.since}".encode(), usedforsecurity=False
+    ).hexdigest()[:16]
+    png = cache.get_or_set(
+        f"og:{digest}",
+        lambda: og.render(origin, destination, search.liaison(origin, destination, params.since)),
+        3600,
+    )
+    response = HttpResponse(png, content_type="image/png")
+    # Une image de partage est reprise telle quelle par les réseaux : la fraîcheur passe par
+    # l'URL, qui porte le jour d'ingestion, pas par une réponse courte.
+    response["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
 @api.get("/route")
 def itineraries(request: HttpRequest, params: Query[RouteParams]):
     window = bookable_window()
     if window is None:
         return _refuse(request, "aucune donnée disponible pour le moment", status=503)
-    _, last = window
+    first, last = window
 
     if station_key(params.origin) == station_key(params.destination):
         return _refuse(request, "le départ et l'arrivée doivent différer")
@@ -218,7 +271,11 @@ def itineraries(request: HttpRequest, params: Query[RouteParams]):
         "date": params.date.isoformat(),
         "maxStops": max_stops,
         "itineraries": found,
-        "alsoAvailable": routing.feasible_next_days(origin, destination, params.date),
+        "alsoAvailable": [
+            day
+            for day in routing.feasible_days(origin, destination, first, max_stops)
+            if day != params.date.isoformat()
+        ],
         # Kept for the client, always false: nothing bounds the exploration any more.
         "truncated": False,
     }

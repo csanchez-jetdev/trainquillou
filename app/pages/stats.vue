@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { seoDescription, seoTitle } from '~~/shared/seo'
 import type { StatsResult } from '~~/shared/types'
 import type { Bar } from '~/components/ChartBars.vue'
 import type { Cell } from '~/components/HeatGrid.vue'
@@ -20,17 +21,21 @@ const scope = computed(() => (origin.value ? prettyLabel(origin.value) : ''))
 
 const title = computed(() =>
   scope.value
-    ? `Statistiques TGVmax depuis ${scope.value} — offre, horaires et destinations`
-    : 'Statistiques TGVmax — quelle part de l\'offre est réservable, et quand',
+    ? seoTitle(`Statistiques TGVmax depuis ${scope.value}`)
+    : seoTitle('Statistiques TGVmax : quelle part de l\'offre est réservable'),
 )
 const description = computed(() =>
   scope.value
-    ? `Combien de destinations TGVmax / MAX JEUNE sont réservables depuis ${scope.value}, à `
-      + 'quelles heures et quels jours partent les trains, et sur quelles liaisons l\'offre se '
-      + 'concentre. Chiffres calculés sur l\'open data SNCF, mis à jour chaque jour.'
-    : 'Quelle part des trains publiés par la SNCF est réservable avec TGVmax / MAX JEUNE, '
-      + 'comment elle varie selon le jour de départ, l\'axe et l\'heure, et sur quelles liaisons '
-      + 'l\'offre se concentre. Chiffres calculés sur l\'open data SNCF, mis à jour chaque jour.',
+    ? seoDescription(
+        `Combien de destinations TGVmax (MAX JEUNE) sont réservables depuis ${scope.value}, à `
+        + 'quelles heures et quels jours partent les trains.',
+        'Chiffres calculés sur l\'open data SNCF, mis à jour chaque jour.',
+      )
+    : seoDescription(
+        'Quelle part des trains publiés par la SNCF est réservable avec TGVmax (MAX JEUNE), et '
+        + 'comment elle varie selon le jour, l\'axe et l\'heure.',
+        'Chiffres calculés sur l\'open data SNCF, mis à jour chaque jour.',
+      ),
 )
 
 const { data: stats, pending, error } = useAsyncData<StatsResult>(
@@ -324,27 +329,7 @@ const medianLead = computed(() => {
 
 <template>
   <div class="min-h-[100dvh] bg-cream text-rail">
-    <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 sm:px-8">
-        <NuxtLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-rail">
-          <img
-            src="/logo-mark.png"
-            alt=""
-            aria-hidden="true"
-            width="32"
-            height="32"
-            class="h-8 w-8 object-contain"
-          >
-          Trainquillou
-        </NuxtLink>
-        <div class="flex items-center gap-4">
-          <GithubLink class="text-rail-soft transition hover:text-rail" />
-          <NuxtLink to="/app" class="text-sm font-medium text-accent-strong hover:underline">
-            Ouvrir l'application →
-          </NuxtLink>
-        </div>
-      </div>
-    </header>
+    <SiteHeader wide />
 
     <main class="mx-auto max-w-5xl px-5 py-12 sm:px-8">
       <nav aria-label="Fil d'ariane" class="mb-6 text-sm text-rail-soft">
@@ -473,22 +458,22 @@ const medianLead = computed(() => {
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
               <dt class="text-sm text-rail-soft">Liaisons desservies</dt>
               <dd class="mt-1 text-3xl font-semibold">{{ count.format(stats.routes) }}</dd>
-              <p class="mt-1 text-xs text-rail-soft">couples de gares, sans correspondance</p>
+              <dd class="mt-1 text-xs text-rail-soft">couples de gares, sans correspondance</dd>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
               <dt class="text-sm text-rail-soft">{{ scope ? 'Destinations' : 'Gares desservies' }}</dt>
               <dd class="mt-1 text-3xl font-semibold">{{ count.format(stats.stations.served) }}</dd>
-              <p class="mt-1 text-xs text-rail-soft">sur {{ stats.stations.known }} connues du jeu de données</p>
+              <dd class="mt-1 text-xs text-rail-soft">sur {{ stats.stations.known }} connues du jeu de données</dd>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
               <dt class="text-sm text-rail-soft">Offres réservables</dt>
               <dd class="mt-1 text-3xl font-semibold">{{ count.format(stats.offers) }}</dd>
-              <p class="mt-1 text-xs text-rail-soft">une offre = un train, un jour, une liaison</p>
+              <dd class="mt-1 text-xs text-rail-soft">une offre = un train, un jour, une liaison</dd>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
               <dt class="text-sm text-rail-soft">Offres par jour</dt>
               <dd class="mt-1 text-3xl font-semibold">{{ count.format(averagePerDay) }}</dd>
-              <p class="mt-1 text-xs text-rail-soft">en moyenne sur les {{ stats.daily.length }} jours</p>
+              <dd class="mt-1 text-xs text-rail-soft">en moyenne sur les {{ stats.daily.length }} jours</dd>
             </div>
           </dl>
 
@@ -871,17 +856,13 @@ const medianLead = computed(() => {
         <h2 class="text-2xl font-bold text-white">À vous de choisir où aller</h2>
         <NuxtLink
           to="/app"
-          class="mt-5 inline-block rounded-xl bg-coral px-8 py-3 font-semibold text-white shadow-lg shadow-coral/40 transition hover:-translate-y-0.5 hover:bg-coral-strong"
+          class="mt-5 inline-block rounded-xl bg-coral-strong px-8 py-3 font-semibold text-white shadow-lg shadow-coral/40 transition hover:-translate-y-0.5 hover:bg-coral-ink"
         >
           Ouvrir la carte →
         </NuxtLink>
       </div>
     </main>
 
-    <footer class="border-t border-slate-200 py-8">
-      <div class="mx-auto max-w-5xl px-5 text-center text-sm text-rail-soft sm:px-8">
-        <NuxtLink to="/" class="underline hover:text-rail">Retour à l'accueil</NuxtLink>
-      </div>
-    </footer>
+    <SiteFooter wide />
   </div>
 </template>

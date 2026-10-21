@@ -4,6 +4,7 @@
 from datetime import date as Date
 from datetime import time
 
+from . import routing
 from .lookups import booking_slug, popularity
 from .models import Offer
 from .normalize import clean_string, collation_key
@@ -160,6 +161,47 @@ def search(origin: str, date: Date, mode: str, date_to: Date | None) -> dict:
     result["mode"] = mode
     result["destinations"] = [_enrich(d) for d in destinations]
     return result
+
+
+def liaison(origin: str, destination: str, since: Date) -> dict:
+    """
+    Everything one liaison page shows, in a single pass over each direction.
+
+    Split into a dozen calls, the same page spent twelve round trips where the data sits in
+    two queries.
+    """
+    offers = Offer.objects.filter(
+        bookable=True, origin=origin, destination=destination, date__gte=since
+    ).order_by("date", "departure", "arrival")
+
+    by_day: dict[Date, list[Offer]] = {}
+    for offer in offers:
+        by_day.setdefault(offer.date, []).append(offer)
+
+    days = [
+        {
+            "date": day.isoformat(),
+            "trains": len(trains),
+            "first": hhmm(trains[0].departure),
+            "fastestMin": min(routing.duration_min(t.departure, t.arrival) for t in trains),
+        }
+        for day, trains in sorted(by_day.items())
+    ]
+    soonest = min(by_day) if by_day else None
+    return {
+        "origin": origin,
+        "destination": destination,
+        "days": days,
+        "next": (
+            {
+                "date": soonest.isoformat(),
+                "trains": [_train(t) for t in by_day[soonest]],
+            }
+            if soonest
+            else None
+        ),
+        "returnDates": return_dates(destination, origin, since),
+    }
 
 
 def return_dates(origin: str, destination: str, since: Date) -> list[str]:

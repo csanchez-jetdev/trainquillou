@@ -19,9 +19,13 @@
   --color-rail: #0b1f3a;
   --color-rail-soft: #4a6488;
   --color-accent: #14b8b0;
-  --color-accent-strong: #0e9a93;
+  /* Text and fills under white text: `accent` is only 2.5:1 on white. */
+  --color-accent-strong: #08726d;
+  /* Accents and map only: white is 2.8:1 on it. */
   --color-coral: #ff6b5e;
-  --color-coral-strong: #ef5b4e;
+  /* Button fill: white is 5:1 on it. */
+  --color-coral-strong: #c93d33;
+  --color-coral-ink: #b3342b;
   /* Dark backgrounds only: 1.9:1 on the cream. */
   --color-sun: #fbbf24;
   --color-cream: #fafaf7;
@@ -30,7 +34,7 @@
   --color-sncf-hover: #242a3e;
   /* The dark green of their buttons: their logo green is only 3:1 on white. */
   --color-trainline: #00705f;
-  --color-trainline-hover: #00a88f;
+  --color-trainline-hover: #005245;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;

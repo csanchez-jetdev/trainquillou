@@ -13,6 +13,7 @@ dependencies = [
     "gunicorn>=23",
     # Serves the admin's own CSS and JS, collected at image build time.
     "whitenoise>=6.8",
+    "pillow>=12.3.0",
 ]
 
 [dependency-groups]

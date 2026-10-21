@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import type { NetworkLink, NetworkStation } from '~~/shared/types'
 import type { Point, RailCollection, RailGraph } from '~/utils/rail-path'
 import { buildRailGraph, railTree, treePath } from '~/utils/rail-path'
-import { MAP_STYLE, RAIL_NETWORK, styleBaseMap } from '~/utils/basemap'
+import { MAP_LOCALE, MAP_STYLE, RAIL_NETWORK, styleBaseMap } from '~/utils/basemap'
 import { prettyLabel } from '~~/shared/stations'
 
 const props = defineProps<{
@@ -161,7 +161,10 @@ onMounted(async () => {
     center: [2.4, 46.6],
     zoom: 4.6,
     attributionControl: { compact: true },
+    locale: MAP_LOCALE,
   })
+  // Its keyboard handler is disabled below: a tab stop that does nothing.
+  map.getCanvas().tabIndex = -1
 
   const bounds = new LngLatBounds()
   for (const station of props.stations) bounds.extend([station.coords[1], station.coords[0]])

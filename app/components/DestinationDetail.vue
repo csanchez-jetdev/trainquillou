@@ -17,6 +17,12 @@ const props = defineProps<{
 
 const isDrawer = computed(() => props.layout === 'drawer')
 
+// The row that opened the sheet is hidden behind the map, so focus would fall back to <body>.
+const root = ref<HTMLElement | null>(null)
+onMounted(() => {
+  if (isDrawer.value) root.value?.focus()
+})
+
 const emit = defineEmits<{
   close: []
   /** Narrow screens only: the sheet floats over the map, so leaving it goes back to the list. */
@@ -70,7 +76,9 @@ function formatDate(iso: string): string {
 
 <template>
   <div
+    ref="root"
     data-test="dest-detail"
+    :tabindex="isDrawer ? -1 : undefined"
     :class="[
       'flex flex-col overflow-hidden',
       isDrawer
@@ -131,8 +139,8 @@ function formatDate(iso: string): string {
         </button>
         <div v-else class="min-w-0 flex-1 text-center">
           <h3 class="truncate text-base font-bold leading-tight text-rail">{{ name }}</h3>
-          <p v-if="pop.tier > 0" class="mt-0.5 text-xs text-amber-500">
-            {{ pop.stars }} <span class="text-rail-soft">{{ pop.label }}</span>
+          <p v-if="pop.tier > 0" class="mt-0.5 text-xs text-rail-soft">
+            <span class="text-amber-600" aria-hidden="true">{{ pop.stars }}</span> {{ pop.label }}
           </p>
         </div>
         <button
@@ -153,7 +161,7 @@ function formatDate(iso: string): string {
       <p class="text-xs text-rail-soft">
         {{ fromName }} <span class="text-slate-300">→</span> {{ toName }}
         <!-- Inline has no header of its own, where the drawer shows this. -->
-        <span v-if="!isDrawer && pop.tier > 0" class="text-amber-500">· {{ pop.stars }} <span class="text-rail-soft">{{ pop.label }}</span></span>
+        <span v-if="!isDrawer && pop.tier > 0">· <span class="text-amber-600" aria-hidden="true">{{ pop.stars }}</span> {{ pop.label }}</span>
       </p>
 
       <template v-if="mode === 'range' && destination.availableDates">
@@ -197,12 +205,12 @@ function formatDate(iso: string): string {
             <span class="ml-auto text-xs tabular-nums text-rail-soft">
               {{ formatDuration(tripDurationMin(t)) }}
             </span>
-            <span v-if="t.trainNumber" class="text-xs text-rail-soft/70">n°{{ t.trainNumber }}</span>
+            <span v-if="t.trainNumber" class="text-xs text-rail-soft">n°{{ t.trainNumber }}</span>
           </li>
         </ul>
 
         <template v-if="mode === 'roundtrip' && destination.returnTrains?.length">
-          <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-coral-strong">
+          <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-coral-ink">
             Retour vers {{ originName }}
           </p>
           <ul class="mt-1.5 flex flex-col gap-1">
@@ -212,7 +220,7 @@ function formatDate(iso: string): string {
               data-test="detail-return"
               class="flex items-baseline gap-2 rounded-md bg-coral/5 px-2 py-1 text-sm"
             >
-              <span class="font-semibold tabular-nums text-coral-strong">{{ t.departure }}</span>
+              <span class="font-semibold tabular-nums text-coral-ink">{{ t.departure }}</span>
               <span class="text-coral/40">→</span>
               <span class="tabular-nums text-rail-soft">{{ t.arrival }}</span>
               <span class="ml-auto text-xs tabular-nums text-rail-soft">

@@ -55,7 +55,7 @@ function submit() {
     <button
       type="submit"
       data-test="hero-submit"
-      class="mt-2 w-full rounded-xl bg-coral px-4 py-3 text-base font-semibold text-white shadow-lg shadow-coral/30 transition hover:bg-coral-strong"
+      class="mt-2 w-full rounded-xl bg-coral-strong px-4 py-3 text-base font-semibold text-white shadow-lg shadow-coral/30 transition hover:bg-coral-ink"
     >
       Voir les destinations →
     </button>

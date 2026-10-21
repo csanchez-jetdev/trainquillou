@@ -49,3 +49,6 @@ scripts/.booking-cache.json
 .env
 .env.*
 !.env.example
+
+# Exports Search Console, hors du dépôt public.
+google-data/

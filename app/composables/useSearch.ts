@@ -1,4 +1,5 @@
 import type { SearchResult, SearchMode } from '~~/shared/types'
+import { todayISO, nextWeekendISO } from '~~/shared/window'
 
 type Mode = SearchMode | 'route'
 
@@ -15,6 +16,31 @@ export function useSearch() {
   })
   const needsDateTo = computed(() => mode.value === 'range' || mode.value === 'roundtrip')
   const hasQuery = computed(() => Boolean(origin.value && date.value))
+
+  /**
+   * The entry pages link here without a date — `/depuis/<gare>`, and the mode cards on the
+   * landing page — and every fetch below needs one, so the search silently did nothing.
+   *
+   * Written into the URL rather than into a local ref: the URL is what the app reads back,
+   * what a reload restores and what a shared link carries.
+   */
+  onMounted(() => {
+    if (date.value && (!needsDateTo.value || dateTo.value)) return
+    const query = { ...route.query }
+    if (!needsDateTo.value) {
+      query.date = todayISO()
+    }
+    else if (!date.value) {
+      // Both ends missing: the weekend round trip the entry pages advertise.
+      const [friday, sunday] = nextWeekendISO()
+      query.date = friday
+      query.dateTo = sunday
+    }
+    else {
+      query.dateTo = date.value
+    }
+    router.replace({ query })
+  })
 
   const { data, pending, error, refresh } = useAsyncData<SearchResult | null>(
     'search',

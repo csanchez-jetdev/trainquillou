@@ -1,6 +1,8 @@
 from datetime import date as Date
+from zoneinfo import ZoneInfo
 
 from django.db.models import Max, Min
+from django.utils import timezone
 
 from .models import Offer, Station
 from .normalize import collation_key
@@ -37,9 +39,19 @@ def last_ingested() -> Date | None:
     return Station.objects.aggregate(last=Max("last_seen"))["last"]
 
 
+# The booking window is SNCF's, counted in Paris days; the container clock runs on UTC.
+PARIS = ZoneInfo("Europe/Paris")
+
+
+def today() -> Date:
+    return timezone.now().astimezone(PARIS).date()
+
+
 def bookable_window() -> tuple[Date, Date] | None:
-    """The days the stored data actually covers."""
+    """The days still bookable that the stored data covers."""
     span = Offer.objects.filter(bookable=True).aggregate(first=Min("date"), last=Max("date"))
     if span["first"] is None:
         return None
-    return span["first"], span["last"]
+    # A day that has passed keeps `bookable`: it leaves the export without ever being flipped.
+    first = max(span["first"], today())
+    return (first, span["last"]) if first <= span["last"] else None

@@ -218,7 +218,7 @@ function submit() {
         data-test="swap"
         title="Inverser le sens"
         aria-label="Inverser le sens de la recherche"
-        class="absolute right-2.5 top-1/2 z-10 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-rail-soft shadow-sm transition hover:border-accent hover:text-accent-strong md:left-1/2 md:right-auto md:-translate-x-1/2 md:rotate-90"
+        class="absolute right-2.5 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-rail-soft shadow-sm transition hover:border-accent hover:text-accent-strong md:left-1/2 md:right-auto md:-translate-x-1/2 md:rotate-90"
         @click="swap"
       >
         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -230,7 +230,7 @@ function submit() {
     <!-- `md:contents`: on the bar the rows vanish and their cells become the frame's own. -->
     <div class="order-2 rounded-xl border border-slate-200 bg-white md:flex md:flex-none md:items-stretch">
       <div class="grid grid-cols-2 md:contents">
-        <div class="rounded-[11px] px-3 py-2 md:min-w-[8.5rem] md:flex-1" :class="invalid('date') && 'tq-invalid'">
+        <label class="block rounded-[11px] px-3 py-2 md:min-w-[8.5rem] md:flex-1" :class="invalid('date') && 'tq-invalid'">
           <span class="block text-xs font-medium text-rail-soft">{{ firstDateLabel }}</span>
           <input
             v-model="date"
@@ -241,7 +241,7 @@ function submit() {
             :aria-describedby="describedBy('date')"
             class="mt-0.5 w-full bg-transparent text-[15px] font-medium text-rail outline-none"
           >
-        </div>
+        </label>
         <div class="relative border-l border-slate-100 px-3 py-2 md:min-w-[9rem] md:flex-1">
           <label for="tq-date-kind" class="block text-xs font-medium text-rail-soft">Voyage</label>
           <select
@@ -263,8 +263,8 @@ function submit() {
 
       <!-- One cell, but the grid stays: full width would misalign the field's calendar icon. -->
       <div v-if="hasSecondDate" class="grid grid-cols-2 border-t border-slate-100 md:contents">
-        <div
-          class="rounded-[11px] px-3 py-2 md:min-w-[8.5rem] md:flex-1 md:border-l md:border-slate-100"
+        <label
+          class="block rounded-[11px] px-3 py-2 md:min-w-[8.5rem] md:flex-1 md:border-l md:border-slate-100"
           :class="invalid('dateTo') && 'tq-invalid'"
         >
           <span class="block text-xs font-medium text-rail-soft">
@@ -280,7 +280,7 @@ function submit() {
             :aria-describedby="describedBy('dateTo')"
             class="mt-0.5 w-full bg-transparent text-[15px] font-medium text-rail outline-none"
           >
-        </div>
+        </label>
       </div>
 
       <div v-if="mode === 'route'" class="grid grid-cols-2 border-t border-slate-100 md:contents">
@@ -308,7 +308,7 @@ function submit() {
       <p
         v-if="sameStation"
         data-test="same-station"
-        class="text-xs leading-snug font-medium text-amber-600"
+        class="text-xs leading-snug font-medium text-amber-700"
       >
         Départ et arrivée sont la même ville : choisissez-en une autre, ou videz « Vers » pour
         voir toutes les destinations.
@@ -330,8 +330,8 @@ function submit() {
       type="submit"
       :disabled="loading || sameStation"
       :class="[
-        'order-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-white transition md:order-3 md:w-auto md:shrink-0',
-        sameStation ? 'cursor-not-allowed bg-slate-300' : 'bg-coral hover:bg-coral-strong disabled:opacity-70',
+        'order-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold transition md:order-3 md:w-auto md:shrink-0',
+        sameStation ? 'cursor-not-allowed bg-slate-200 text-rail-soft' : 'bg-coral-strong text-white hover:bg-coral-ink disabled:opacity-70',
       ]"
     >
       <Spinner v-if="loading" :size="16" />

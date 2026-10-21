@@ -26,6 +26,20 @@ export function lastBookableISO(now: Date = new Date()): string {
   return new Date(last).toISOString().slice(0, 10)
 }
 
+/**
+ * The coming Friday and the Sunday that follows — today when today is a Friday.
+ *
+ * Reaches eight days out at most, so both ends always land inside the booking window.
+ */
+export function nextWeekendISO(now: Date = new Date()): [string, string] {
+  const [year, month, day] = todayISO(now).split('-').map(Number)
+  const shift = (offset: number) =>
+    new Date(Date.UTC(year!, month! - 1, day! + offset)).toISOString().slice(0, 10)
+  // getUTCDay: Sunday is 0, Friday is 5.
+  const toFriday = (5 - new Date(Date.UTC(year!, month! - 1, day!)).getUTCDay() + 7) % 7
+  return [shift(toFriday), shift(toFriday + 2)]
+}
+
 /** `true` when the `YYYY-MM-DD` date falls inside the bookable window. */
 export function isBookable(date: string, now: Date = new Date()): boolean {
   return date >= todayISO(now) && date <= lastBookableISO(now)

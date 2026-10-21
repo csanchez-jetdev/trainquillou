@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { POPULAR_STATIONS, ROUTE_PAGES, cityName } from '~~/shared/stations'
+
 const route = useRoute()
 if (route.query.origin || route.query.mode || route.query.destination) {
   await navigateTo({ path: '/app', query: route.query })
@@ -18,20 +20,12 @@ const steps = [
   { n: '3', title: 'Réservez sur SNCF Connect', desc: 'Trainquillou vous montre où aller ; la réservation TGVmax se fait ensuite côté SNCF.' },
 ]
 
-const POPULAR = [
-  { slug: 'paris', name: 'Paris' },
-  { slug: 'lyon', name: 'Lyon' },
-  { slug: 'marseille-st-charles', name: 'Marseille' },
-  { slug: 'bordeaux-st-jean', name: 'Bordeaux' },
-  { slug: 'lille', name: 'Lille' },
-  { slug: 'nantes', name: 'Nantes' },
-  { slug: 'strasbourg', name: 'Strasbourg' },
-  { slug: 'toulouse-matabiau', name: 'Toulouse' },
-  { slug: 'montpellier', name: 'Montpellier' },
-  { slug: 'nice-ville', name: 'Nice' },
-  { slug: 'rennes', name: 'Rennes' },
-  { slug: 'dijon-ville', name: 'Dijon' },
-]
+// One liaison per departure station, so the block spans the network rather than one city.
+const FEATURED_ROUTES = ROUTE_PAGES.filter(
+  (r, i, all) => all.findIndex((o) => o.from === r.from) === i,
+)
+
+const routeName = cityName
 
 /** Rendered on the page and declared as JSON-LD: the markup must match what is visible. */
 const FAQ = [
@@ -41,6 +35,13 @@ const FAQ = [
       + 'les trains éligibles, dans la limite des places réservées à l\'abonnement. Ces places sont '
       + 'contingentées : un train peut circuler sans être ouvert à l\'abonnement. C\'est ce '
       + 'contingent que Trainquillou rend visible.',
+  },
+  {
+    q: 'Existe-t-il un simulateur TGVmax ?',
+    a: '« Simulateur MAX JEUNE » est le nom que la SNCF donne à l\'outil montrant les places à 0 € '
+      + 'ouvertes sur les trente prochains jours. Trainquillou en est un, en carte et sans compte : '
+      + 'la page Simulateur TGVmax explique ce qu\'il peut dire, et calcule combien de trajets '
+      + 'couvrent l\'abonnement.',
   },
   {
     q: 'TGVmax ou MAX JEUNE : quel est le bon nom ?',
@@ -121,7 +122,7 @@ const { public: { siteUrl } } = useRuntimeConfig()
 const base = siteUrl.replace(/\/$/, '')
 
 useHead({
-  title: 'Trainquillou — destinations TGVmax (MAX JEUNE) sur une carte, gratuit',
+  title: 'Trainquillou — les destinations TGVmax sur une carte',
   link: [{ rel: 'canonical', href: base }],
   meta: [{ property: 'og:url', content: base }],
   script: [
@@ -160,6 +161,7 @@ useHead({
 
 <template>
   <div class="min-h-[100dvh] bg-cream text-rail">
+    <main>
     <!-- No `overflow-hidden`: the station suggestion list has to overflow the banner. -->
     <section class="relative flex min-h-[88dvh] w-full flex-col">
       <picture>
@@ -196,6 +198,7 @@ useHead({
           Trainquillou
         </span>
         <div class="flex items-center gap-5 text-sm font-medium text-white/80">
+          <NuxtLink to="/liaisons" class="-my-2 py-2 transition hover:text-white">Liaisons</NuxtLink>
           <a
             href="https://data.sncf.com/explore/dataset/tgvmax/"
             target="_blank"
@@ -204,7 +207,7 @@ useHead({
           >
             Open data SNCF
           </a>
-          <GithubLink label="GitHub" class="transition hover:text-white" />
+          <GithubLink label="GitHub" class="-my-2 py-2 transition hover:text-white" />
         </div>
       </header>
 
@@ -284,15 +287,15 @@ useHead({
 
     <section class="mx-auto max-w-6xl px-5 py-16 sm:px-8">
       <div class="grid gap-4 sm:grid-cols-3">
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 border-t-4 border-t-accent">
+        <div class="rounded-2xl border border-slate-200 bg-white p-6">
           <h3 class="font-semibold text-rail">Vraiment gratuit</h3>
           <p class="mt-1 text-sm text-rail-soft">Aucun paywall, aucune fonctionnalité réservée, aucun compte à créer.</p>
         </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 border-t-4 border-t-accent">
+        <div class="rounded-2xl border border-slate-200 bg-white p-6">
           <h3 class="font-semibold text-rail">Open data</h3>
           <p class="mt-1 text-sm text-rail-soft">Données officielles open data SNCF (dataset TGVmax + référentiel des gares).</p>
         </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 border-t-4 border-t-accent">
+        <div class="rounded-2xl border border-slate-200 bg-white p-6">
           <h3 class="font-semibold text-rail">Open source</h3>
           <p class="mt-1 text-sm text-rail-soft">
             Code ouvert sous licence AGPL-3.0.
@@ -307,7 +310,7 @@ useHead({
           Les 341 gares du réseau TGVmax sont couvertes. Voici les départs les plus recherchés.
         </p>
         <ul class="mt-5 flex flex-wrap gap-2">
-          <li v-for="p in POPULAR" :key="p.slug">
+          <li v-for="p in POPULAR_STATIONS" :key="p.slug">
             <NuxtLink
               :to="`/depuis/${p.slug}`"
               class="inline-block rounded-lg bg-white px-3.5 py-2 text-sm font-medium ring-1 ring-slate-200 transition hover:text-accent-strong hover:ring-accent"
@@ -316,6 +319,29 @@ useHead({
             </NuxtLink>
           </li>
         </ul>
+      </div>
+
+      <div class="mt-14">
+        <h2 class="font-display text-2xl font-bold tracking-tight sm:text-3xl">Liaisons suivies</h2>
+        <p class="mt-2 text-rail-soft">
+          Pour ces trajets, une page dit les jours réservables et les horaires du prochain d'entre eux.
+        </p>
+        <ul class="mt-5 flex flex-wrap gap-2">
+          <li v-for="r in FEATURED_ROUTES" :key="`${r.from}-${r.to}`">
+            <NuxtLink
+              :to="`/depuis/${r.from}/vers/${r.to}`"
+              class="inline-block rounded-lg bg-white px-3.5 py-2 text-sm font-medium ring-1 ring-slate-200 transition hover:text-accent-strong hover:ring-accent"
+            >
+              {{ routeName(r.from) }} → {{ routeName(r.to) }}
+            </NuxtLink>
+          </li>
+        </ul>
+        <NuxtLink
+          to="/liaisons"
+          class="mt-5 inline-block font-medium text-accent-strong underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+        >
+          Toutes les liaisons TGVmax
+        </NuxtLink>
       </div>
 
       <div class="mt-14">
@@ -332,7 +358,12 @@ useHead({
           </details>
         </div>
         <p class="mt-4 text-sm text-rail-soft">
-          Le détail de la méthode, des sources et de l'hébergement est sur la page
+          Le
+          <NuxtLink to="/simulateur-tgvmax" class="font-medium text-accent-strong hover:underline">
+            simulateur TGVmax
+          </NuxtLink>
+          reprend ces règles et calcule ce que l'abonnement doit rapporter. Le détail de la
+          méthode, des sources et de l'hébergement est sur la page
           <NuxtLink to="/a-propos" class="font-medium text-accent-strong hover:underline">À propos</NuxtLink>.
         </p>
       </div>
@@ -367,12 +398,13 @@ useHead({
         <h2 class="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">Prêt à trouver votre prochaine escapade ?</h2>
         <NuxtLink
           to="/app"
-          class="mt-6 inline-block rounded-xl bg-coral px-8 py-3 text-base font-semibold text-white shadow-lg shadow-coral/40 transition hover:-translate-y-0.5 hover:bg-coral-strong"
+          class="mt-6 inline-block rounded-xl bg-coral-strong px-8 py-3 text-base font-semibold text-white shadow-lg shadow-coral/40 transition hover:-translate-y-0.5 hover:bg-coral-ink"
         >
           Ouvrir l'application →
         </NuxtLink>
       </div>
     </section>
+    </main>
 
     <footer class="border-t border-slate-200 py-8">
       <div class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-5 text-center text-sm text-rail-soft sm:px-8">
@@ -393,8 +425,12 @@ useHead({
           données © <a class="underline hover:text-rail" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
           · licence AGPL-3.0
         </p>
-        <p class="text-rail-soft/70">Non affilié à la SNCF. La réservation des places TGVmax se fait sur SNCF Connect.</p>
+        <p class="text-rail-soft">Non affilié à la SNCF. La réservation des places TGVmax se fait sur SNCF Connect.</p>
         <p class="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <NuxtLink to="/simulateur-tgvmax" class="font-medium text-rail transition hover:text-accent-strong">Simulateur TGVmax</NuxtLink>
+          <span aria-hidden="true" class="text-rail-soft/40">·</span>
+          <NuxtLink to="/liaisons" class="font-medium text-rail transition hover:text-accent-strong">Liaisons</NuxtLink>
+          <span aria-hidden="true" class="text-rail-soft/40">·</span>
           <NuxtLink to="/a-propos" class="font-medium text-rail transition hover:text-accent-strong">À propos</NuxtLink>
           <span aria-hidden="true" class="text-rail-soft/40">·</span>
           <NuxtLink to="/stats" class="font-medium text-rail transition hover:text-accent-strong">Statistiques</NuxtLink>

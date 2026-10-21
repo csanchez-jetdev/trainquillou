@@ -1,9 +1,12 @@
 import tailwindcss from '@tailwindcss/vite'
-import { STATION_PAGES } from './shared/stations'
 
 const RYBBIT_SITE_ID = process.env.NUXT_PUBLIC_RYBBIT_SITE_ID ?? ''
 
 const RYBBIT_HOST = (process.env.NUXT_PUBLIC_RYBBIT_HOST || 'https://app.rybbit.io').replace(/\/$/, '')
+
+// `NUXT_` est obligatoire : c'est le préfixe par lequel Nuxt remplace `runtimeConfig`
+// à l'exécution. Sans lui, la valeur lue ici au build reste figée dans le conteneur.
+const BACKEND_URL = (process.env.NUXT_BACKEND_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
 
 // Absolute: the social crawlers do not reliably resolve a relative `og:image`.
 const SITE_URL = (process.env.NUXT_PUBLIC_SITE_URL || 'https://trainquillou.fr').replace(/\/$/, '')
@@ -26,11 +29,10 @@ const CACHED_ASSETS = [
   'icon-512.png',
 ]
 
-const TITLE = 'Trainquillou — destinations TGVmax (MAX JEUNE) sur une carte'
+const TITLE = 'Trainquillou — les destinations TGVmax sur une carte'
 const DESCRIPTION
-  = 'Trouvez les destinations TGVmax / MAX JEUNE réservables depuis votre gare, sur une carte '
-    + 'interactive. Aller-retour week-end, recherche inverse, itinéraires avec correspondances. '
-    + 'Gratuit, sans compte, sans publicité.'
+  = 'Les destinations TGVmax (MAX JEUNE) réservables depuis votre gare, sur une carte. '
+    + 'Aller-retour, recherche inverse, correspondances. Gratuit, sans compte.'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint'],
@@ -47,11 +49,11 @@ export default defineNuxtConfig({
   nitro: {
     // Development only: in production the reverse proxy routes /api/* to Django itself.
     devProxy: {
-      '/api': `${(process.env.BACKEND_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')}/api`,
+      '/api': `${BACKEND_URL}/api`,
     },
 
     prerender: {
-      routes: ['/', '/a-propos', '/stats', ...STATION_PAGES.map((s) => `/depuis/${s.slug}`)],
+      routes: ['/', '/a-propos', '/stats'],
       crawlLinks: false,
     },
 
@@ -65,10 +67,20 @@ export default defineNuxtConfig({
       ),
 
       '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+
+      // Rendered on demand and kept six hours: these pages carry the bookable dates, which
+      // the daily ingestion moves. Prerendering would freeze them on the build day.
+      '/liaisons': { swr: 21600 },
+      '/simulateur-tgvmax': { swr: 21600 },
+      '/depuis/*': { swr: 21600 },
+      '/depuis/*/vers/**': { swr: 21600 },
     },
   },
 
   runtimeConfig: {
+    // Server-side only: the browser reaches Django through the reverse proxy, Nitro cannot.
+    backendUrl: BACKEND_URL,
+
     public: {
       siteUrl: SITE_URL,
 
@@ -79,6 +91,17 @@ export default defineNuxtConfig({
 
   $development: {
     runtimeConfig: { public: { planner: true } },
+
+    // The cache outlives a dev server restart, so an edit to a liaison page would look
+    // like it had no effect for six hours.
+    nitro: {
+      routeRules: {
+        '/liaisons': { swr: false },
+        '/simulateur-tgvmax': { swr: false },
+        '/depuis/*': { swr: false },
+        '/depuis/*/vers/**': { swr: false },
+      },
+    },
   },
 
   app: {

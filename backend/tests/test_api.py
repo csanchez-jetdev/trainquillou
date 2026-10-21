@@ -5,6 +5,7 @@ from datetime import date, time
 import pytest
 from django.core.cache import cache
 
+from tgvmax import catalog
 from tgvmax.models import Coverage, Offer, Station
 
 PARIS = "PARIS (intramuros)"
@@ -182,6 +183,91 @@ def test_return_dates(client, network):
 
 
 @pytest.mark.django_db
+class TestLiaison:
+    def test_gathers_both_directions_in_one_call(self, client, network):
+        body = client.get(
+            "/api/liaison", {"origin": PARIS, "dest": LYON, "from": "2026-08-10"}
+        ).json()
+
+        assert body["origin"] == PARIS
+        assert body["destination"] == LYON
+        assert body["days"] == [
+            {"date": "2026-08-10", "trains": 2, "first": "08:00", "fastestMin": 120},
+            {"date": "2026-08-11", "trains": 1, "first": "09:00", "fastestMin": 120},
+        ]
+        assert body["next"]["date"] == "2026-08-10"
+        assert [t["trainNumber"] for t in body["next"]["trains"]] == ["6601", "6602"]
+        assert body["returnDates"] == ["2026-08-10"]
+
+    def test_counts_an_overnight_trip_across_midnight(self, client, db):
+        offer(D1, PARIS, MARSEILLE, "22:30", "06:10", train="5780")
+
+        body = client.get(
+            "/api/liaison", {"origin": PARIS, "dest": MARSEILLE, "from": "2026-08-10"}
+        ).json()
+
+        assert body["days"][0]["fastestMin"] == 460
+
+    def test_says_so_when_nothing_is_bookable(self, client, network):
+        body = client.get(
+            "/api/liaison", {"origin": MARSEILLE, "dest": PARIS, "from": "2026-08-10"}
+        ).json()
+
+        assert body["days"] == []
+        assert body["next"] is None
+
+    def test_refuses_a_pair_of_the_same_city(self, client, network):
+        response = client.get(
+            "/api/liaison", {"origin": PARIS, "dest": PARIS, "from": "2026-08-10"}
+        )
+
+        assert response.status_code == 400
+
+    def test_names_an_unknown_station(self, client, network):
+        response = client.get(
+            "/api/liaison", {"origin": PARIS, "dest": "BREST", "from": "2026-08-10"}
+        )
+
+        assert response.status_code == 400
+        assert response.json()["unknown"] == ["BREST"]
+
+
+@pytest.mark.django_db
+class TestShareImage:
+    def test_draws_a_png_for_the_pair(self, client, network):
+        response = client.get("/api/og.png", {"origin": PARIS, "dest": LYON, "from": "2026-08-10"})
+
+        assert response.status_code == 200
+        assert response["Content-Type"] == "image/png"
+        # The signature, so a broken renderer cannot pass by returning an empty body.
+        assert response.content[:8] == b"\x89PNG\r\n\x1a\n"
+        assert len(response.content) > 5_000
+
+    def test_draws_one_when_nothing_is_bookable(self, client, network):
+        response = client.get(
+            "/api/og.png", {"origin": MARSEILLE, "dest": PARIS, "from": "2026-08-10"}
+        )
+
+        assert response.status_code == 200
+        assert response.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+    def test_titles_the_pair_as_the_page_spells_it(self):
+        from tgvmax.og import pretty_label
+
+        assert pretty_label(PARIS) == "Paris"
+        assert pretty_label(MARSEILLE) == "Marseille St Charles"
+        assert pretty_label("AVIGNON TGV") == "Avignon TGV"
+
+    def test_refuses_an_unknown_pair(self, client, network):
+        assert (
+            client.get(
+                "/api/og.png", {"origin": PARIS, "dest": "BREST", "from": "2026-08-10"}
+            ).status_code
+            == 404
+        )
+
+
+@pytest.mark.django_db
 class TestRoute:
     def test_finds_a_trip_with_one_connection(self, client, network):
         body = client.get(
@@ -214,6 +300,17 @@ class TestRoute:
         ).json()
 
         assert [it["departure"] for it in body["itineraries"]] == ["08:00", "12:00"]
+
+    def test_a_direct_outranks_an_earlier_trip_with_connections(self, client, network):
+        # The connection leaves at dawn and lands after the direct, which departs at midday.
+        offer(D1, PARIS, MARSEILLE, "13:00", "16:20", train="direct")
+
+        body = client.get(
+            "/api/route", {"from": PARIS, "to": MARSEILLE, "date": "2026-08-10", "stops": 1}
+        ).json()
+
+        assert [it["stops"] for it in body["itineraries"]] == [0, 1]
+        assert body["itineraries"][0]["departure"] == "13:00"
 
     def test_crossing_paris_takes_more_than_a_platform_change(self, client, network):
         # Arrival in Paris at 08:00, departure at 08:30 from whichever station: 30 minutes
@@ -249,7 +346,7 @@ class TestRoute:
         assert body["itineraries"] == []
         assert body["alsoAvailable"] == [far.isoformat()]
 
-    def test_suggests_at_most_three_dates(self, client, network):
+    def test_suggests_the_whole_window(self, client, network):
         for offset in range(1, 6):
             day = date(2026, 8, 12 + offset)
             offer(day, PARIS, MARSEILLE, "08:00", "11:20", train=f"77{offset}")
@@ -258,7 +355,44 @@ class TestRoute:
             "/api/route", {"from": PARIS, "to": MARSEILLE, "date": "2026-08-10", "stops": 0}
         ).json()
 
-        assert body["alsoAvailable"] == ["2026-08-13", "2026-08-14", "2026-08-15"]
+        assert body["alsoAvailable"] == [
+            "2026-08-13",
+            "2026-08-14",
+            "2026-08-15",
+            "2026-08-16",
+            "2026-08-17",
+        ]
+
+    def test_suggests_days_before_the_one_asked_for(self, client, network):
+        # Aiming past the trains used to answer nothing at all: suggestions only looked forward.
+        offer(D1, PARIS, MARSEILLE, "08:00", "11:20", train="7788")
+
+        body = client.get(
+            "/api/route", {"from": PARIS, "to": MARSEILLE, "date": "2026-08-11", "stops": 0}
+        ).json()
+
+        assert body["itineraries"] == []
+        assert body["alsoAvailable"] == ["2026-08-10"]
+
+    def test_never_suggests_a_day_gone_by(self, client, network, monkeypatch):
+        monkeypatch.setattr(catalog, "today", lambda: date(2026, 8, 11))
+
+        body = client.get(
+            "/api/route", {"from": PARIS, "to": LYON, "date": "2026-08-11", "stops": 0}
+        ).json()
+
+        assert body["alsoAvailable"] == []
+
+    def test_directs_only_never_suggests_a_day_that_needs_a_connection(self, client, network):
+        # Marseille is reachable on D1 by changing in Lyon, and only that way.
+        body = client.get(
+            "/api/route", {"from": PARIS, "to": MARSEILLE, "date": "2026-08-11", "stops": 0}
+        ).json()
+
+        assert body["alsoAvailable"] == []
+        assert client.get(
+            "/api/route", {"from": PARIS, "to": MARSEILLE, "date": "2026-08-11", "stops": 1}
+        ).json()["alsoAvailable"] == ["2026-08-10"]
 
     def test_refuses_a_trip_to_the_same_city(self, client, network):
         response = client.get(

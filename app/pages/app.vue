@@ -27,7 +27,14 @@ watch(visibleLabels, (labels) => {
 
 // `immediate`: an SSR-payload result never fires a change, so a shared link goes uncounted.
 watch(result, (r) => {
-  if (r) track('search', { mode: r.mode, origin: r.origin.label, results: r.destinations.length })
+  if (r) {
+    track('search', {
+      mode: r.mode,
+      origin: r.origin.label,
+      results: r.destinations.length,
+      horizon: horizonDays(r.date),
+    })
+  }
 }, { immediate: true })
 
 watch(() => itinerary.route.value, (r) => {
@@ -37,7 +44,18 @@ watch(() => itinerary.route.value, (r) => {
     origin: r.from.label,
     destination: r.to.label,
     results: r.itineraries.length,
+    horizon: horizonDays(r.date),
+    stops: r.maxStops,
+    // What the empty state had to offer: the measure of whether it rescues the search.
+    suggested: r.alsoAvailable.length,
   })
+})
+
+// Rybbit's error capture only sees thrown exceptions; a fetch `useAsyncData` catches for us
+// never reaches it, and a backend refusing calls would look like a quiet day.
+watch([error, () => itinerary.error.value], ([search, route]) => {
+  const failed = (search ?? route) as { statusCode?: number } | null
+  if (failed) track('api_error', { endpoint: search ? 'search' : 'route', status: failed.statusCode ?? 0 })
 })
 
 const isRoute = computed(() => mode.value === 'route')
@@ -71,6 +89,18 @@ const MOBILE_VIEWS = [
 const sheetCollapsed = ref(false)
 watch(formOpen, (open) => { if (open) sheetCollapsed.value = true })
 watch(selectedDestination, (label) => { sheetCollapsed.value = Boolean(label) && formOpen.value })
+
+// Closing the sheet unmounts whatever held focus: hand it to what the reader sees next.
+watch(selectedDestination, (label, previous) => {
+  if (label || !previous || !isNarrow.value) return
+  nextTick(() => {
+    if (document.activeElement && document.activeElement !== document.body) return
+    const target = mobileView.value === 'list'
+      ? document.querySelector<HTMLElement>(`[data-label="${CSS.escape(previous)}"] button`)
+      : document.querySelector<HTMLElement>(`[data-test="view-${mobileView.value}"]`)
+    target?.focus()
+  })
+})
 
 function onMapBackground() {
   if (isNarrow.value && detailDest.value && !sheetCollapsed.value) sheetCollapsed.value = true
@@ -111,6 +141,9 @@ const showList = computed(() => !isNarrow.value || mobileView.value === 'list')
 const mapCovered = computed(() => isNarrow.value && showList.value)
 
 function onSelectDestination(label: string) {
+  if (selectedDestination.value !== label) {
+    track('destination_open', { destination: label, mode: mode.value })
+  }
   if (isNarrow.value && mobileView.value === 'list') {
     selectedDestination.value = label
     mobileView.value = 'map'
@@ -150,11 +183,13 @@ async function onShowReturns(destLabel: string) {
 
 function onPickReturn(destination: string, dateTo: string) {
   if (!result.value) return
+  track('date_pick', { source: 'return', horizon: horizonDays(dateTo) })
   reopen.value = destination
   search({ mode: 'roundtrip', origin: result.value.origin.label, date: result.value.date, dateTo })
 }
 
 function onPickRouteDate(d: string) {
+  track('date_pick', { source: 'suggestion', horizon: horizonDays(d) })
   search({
     mode: 'route',
     origin: itinerary.from.value,
@@ -175,7 +210,7 @@ useHead({
 
 <template>
   <div class="flex h-dvh flex-col bg-slate-100">
-    <header class="z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
+    <header class="z-20 flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 border-b border-slate-200 bg-white px-4 py-1.5">
       <NuxtLink to="/" class="flex items-center gap-2 font-display font-bold tracking-tight text-rail">
         <!-- Decorative: the name follows in the same link. -->
         <img
@@ -192,17 +227,18 @@ useHead({
         <NuxtLink
           v-if="plannerEnabled"
           to="/planificateur"
-          class="text-sm font-medium text-accent-strong hover:underline"
+          class="-my-2 py-2 text-sm font-medium text-accent-strong hover:underline"
         >
           Plusieurs étapes
         </NuxtLink>
-        <GithubLink class="text-rail-soft transition hover:text-rail" />
+        <GithubLink class="-m-2 p-2 text-rail-soft transition hover:text-rail" />
       </div>
     </header>
 
     <!-- Explicit `col-start-1`: without it the map and the list are auto-placed side by side. -->
     <!-- `grid-cols-1` and not the implicit column: `auto` would size it to the widest row. -->
-    <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[24rem_minmax(0,1fr)]">
+    <main class="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[24rem_minmax(0,1fr)]">
+      <h1 class="sr-only">Destinations TGVmax</h1>
       <!-- `relative z-10`: the station suggestions must overlay the map and the list. -->
       <div class="relative z-10 col-start-1 row-start-1 border-b border-slate-100 bg-white p-3 md:col-span-2 md:border-slate-200">
         <button
@@ -309,7 +345,7 @@ useHead({
                 type="button"
                 :data-test="`view-${v.key}`"
                 :aria-pressed="mobileView === v.key"
-                class="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition"
+                class="flex items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-semibold transition"
                 :class="mobileView === v.key ? 'bg-rail text-white' : 'text-rail-soft'"
                 @click="mobileView = v.key"
               >
@@ -342,7 +378,7 @@ useHead({
             />
           </div>
 
-          <p class="pointer-events-auto border-t border-slate-100 bg-white/90 px-3 py-2 text-[11px] text-rail-soft/80 backdrop-blur-sm md:bg-white">
+          <p class="pointer-events-auto border-t border-slate-100 bg-white/90 px-3 py-2 text-[11px] text-rail-soft backdrop-blur-sm md:bg-white">
             Données <a class="underline" href="https://data.sncf.com/explore/dataset/tgvmax/" target="_blank" rel="noopener">open data SNCF</a> ·
             fond de carte <a class="underline" href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, données
             <a class="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ·
@@ -350,7 +386,6 @@ useHead({
           </p>
         </div>
       </aside>
-    </div>
-
+    </main>
   </div>
 </template>

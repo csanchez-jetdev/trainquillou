@@ -38,6 +38,42 @@ def test_forwarded_header_wins_over_the_socket_address(client):
     assert refused.status_code == 429
 
 
+@pytest.fixture
+def internal_host(settings):
+    """Production lists the service name too, or the renderer could not reach Django at all."""
+    settings.ALLOWED_HOSTS = [*settings.ALLOWED_HOSTS, "django"]
+
+
+@pytest.mark.django_db
+def test_the_server_side_renderer_is_not_a_client(client, internal_host):
+    """Twenty-seven pages rendered at once share one address, and are the site itself."""
+    for _ in range(6):
+        assert (
+            client.get("/api/health", REMOTE_ADDR="172.18.0.4", HTTP_HOST="django:8000").status_code
+            == 200
+        )
+
+
+@pytest.mark.django_db
+def test_a_forged_internal_host_from_outside_is_still_counted(client, internal_host):
+    """Reaching Django through Caddy always carries the header it rewrites."""
+    for _ in range(4):
+        client.get(
+            "/api/health",
+            REMOTE_ADDR="172.18.0.4",
+            HTTP_HOST="django:8000",
+            HTTP_X_FORWARDED_FOR="203.0.113.9",
+        )
+
+    refused = client.get(
+        "/api/health",
+        REMOTE_ADDR="172.18.0.4",
+        HTTP_HOST="django:8000",
+        HTTP_X_FORWARDED_FOR="203.0.113.9",
+    )
+    assert refused.status_code == 429
+
+
 def test_paths_outside_the_api_are_not_counted(client):
     for _ in range(10):
         # 404 is fine: what matters is that the throttle let it through.

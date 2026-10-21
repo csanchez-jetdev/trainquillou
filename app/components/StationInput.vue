@@ -88,7 +88,7 @@ function onKeydown(event: KeyboardEvent) {
         :aria-activedescendant="active >= 0 ? `${id}-opt-${active}` : undefined"
         :aria-invalid="invalid || undefined"
         :aria-describedby="describedBy"
-        class="min-w-0 flex-1 bg-transparent pr-8 text-[15px] font-medium text-rail outline-none placeholder:font-normal placeholder:text-slate-400"
+        class="min-w-0 flex-1 bg-transparent pr-8 text-[15px] font-medium text-rail outline-none placeholder:font-normal placeholder:text-slate-500"
         @input="emit('update:modelValue', ($event.target as HTMLInputElement).value); open = true"
         @focus="open = true"
         @blur="close"

@@ -50,6 +50,9 @@ Et aussi :
 - **Dates de retour disponibles** pour chaque destination, en un clic.
 - **Liens de réservation** vers SNCF Connect et Trainline.
 - **Recherches partageables** : l'URL contient toute la recherche, un lien collé rejoue le même écran.
+- **Une page par liaison suivie** (`/depuis/paris/vers/lyon`, listées sur `/liaisons`) : les jours
+  réservables, les horaires du prochain d'entre eux et les dates de retour, rendus au serveur et
+  actualisés avec l'ingestion quotidienne.
 - **Jours de repli suggérés** quand la date demandée ne donne aucun itinéraire.
 - **Voyage en plusieurs étapes** : deux à six gares dans l'ordre, une boucle qui revient à son
   point de départ, ou une excursion à la journée avec un temps minimum sur place. Chaque étape
@@ -107,19 +110,16 @@ gunicorn directement pour mesurer l'API.
 
 ## S'auto-héberger
 
-Trois conteneurs : l'application Nuxt, l'API Django, et un proxy qui répartit `/api/*` vers la
-seconde et le reste vers la première. La base est un fichier SQLite sur volume, alimenté une fois
-par jour.
+Trois services : l'application Nuxt, l'API Django, et un worker qui exécute l'ingestion. Un
+proxy devant envoie `/api/*` et `/static/*` vers l'API et le reste vers l'application — même
+origine pour le navigateur, donc aucun CORS à ouvrir. La base est un fichier SQLite sur volume.
+Comptez environ 700 Mo de RAM pour l'ensemble.
 
-```bash
-docker compose -f infra/compose.yml up -d --build
-docker compose -f infra/compose.yml exec django python manage.py migrate
-docker compose -f infra/compose.yml exec django python manage.py fetch_tgvmax
-```
+Rien à programmer sur l'hôte, ni cron ni minuteur : l'ingestion quotidienne s'inscrit elle-même
+dans la file, chaque exécution armant la suivante.
 
-`infra/` contient le `Caddyfile`, les deux `Dockerfile`, `compose.yml` et `deploy.sh`. Comptez
-environ 700 Mo de RAM pour l'ensemble. Rien à configurer sur l'hôte : l'ingestion quotidienne se
-programme elle-même dans la file, chaque exécution armant la suivante.
+Ce dépôt fournit le code et sa configuration, pas le déploiement : les images, la composition et
+le proxy dépendent de l'hébergeur. Ceux de l'instance officielle vivent dans un dépôt privé.
 
 ### Administration
 
@@ -129,12 +129,12 @@ seule, y compris pour un superutilisateur — une offre modifiée à la main ser
 suivant, et une ligne d'historique supprimée ne se retrouve pas.
 
 ```bash
-docker compose -f infra/compose.yml exec django python manage.py createsuperuser
+uv run --directory backend manage.py createsuperuser
 ```
 
-Le proxy place une authentification HTTP devant `/admin/`, indépendante de celle de Django : le
-formulaire de connexion n'est jamais atteignable directement. `deploy.sh` génère ces identifiants
-au premier déploiement et les affiche une seule fois.
+Placer une authentification HTTP au niveau du proxy, en plus de celle de Django, garde le
+formulaire de connexion hors d'atteinte : un scanner ne le rencontre jamais, et lire la base
+demande alors de franchir deux authentifications indépendantes.
 
 **La base est le seul état non reconstructible du projet.** Les offres du jour se réingèrent en
 quelques secondes, mais l'historique de disponibilité accumulé jour après jour, non : l'amont est
@@ -142,6 +142,8 @@ une fenêtre glissante de 30 jours. Chaque ingestion en écrit donc une copie co
 `sauvegardes/`, sur le volume, et garde les trente dernières. Sur le même disque que la base :
 cela protège d'une migration ratée ou d'une suppression, pas de la perte du disque — une copie
 hors serveur reste à brancher.
+
+### Configuration
 
 | Variable | Effet |
 |---|---|
@@ -152,7 +154,8 @@ hors serveur reste à brancher.
 | `NUXT_PUBLIC_SITE_URL` | URL publique, pour les liens canoniques et le sitemap |
 | `NUXT_PUBLIC_RYBBIT_SITE_ID` | Active la mesure d'audience [Rybbit](https://rybbit.io) avec **votre** identifiant. Non définie, aucun script tiers n'est chargé |
 | `NUXT_PUBLIC_RYBBIT_HOST` | Instance Rybbit qui sert le script et reçoit les mesures (défaut : `https://app.rybbit.io`, le service hébergé) |
-| `BACKEND_URL` | En développement seulement : où le serveur Nuxt relaie `/api/*` (défaut `http://127.0.0.1:8000`) |
+| `TRAINQUILLOU_FONT_DIR` | Où Django lit les polices pour dessiner les images de partage (défaut `public/fonts` du dépôt, `/app/fonts` dans l'image) |
+| `NUXT_BACKEND_URL` | Où le serveur Nuxt joint l'API Django (défaut `http://127.0.0.1:8000`). En développement il y relaie `/api/*` ; en production les pages de liaison, rendues au serveur, y lisent leurs dates — `http://django:8000` sur le réseau Compose |
 | `NUXT_PUBLIC_PLANNER` | `true` affiche le lien vers le planificateur multi-étapes. Sans elle, la page reste joignable par son URL mais n'est liée de nulle part. Activée d'office en développement |
 
 La licence AGPL-3.0 vous autorise à héberger votre propre instance, y compris modifiée, à
@@ -243,6 +246,8 @@ milliseconde. Utilisables telles quelles si vous auto-hébergez, et décrites en
 | `GET /api/search?origin=&date=&mode=&dateTo=` | Destinations réservables, enrichies des coordonnées |
 | `GET /api/returns?origin=&dest=&from=` | Dates de retour disponibles pour un trajet |
 | `GET /api/route?from=&to=&date=&stops=` | Itinéraires avec correspondances |
+| `GET /api/liaison?origin=&dest=&from=` | Jours réservables, horaires du prochain, dates de retour |
+| `GET /api/og.png?origin=&dest=&from=` | Image de partage d'une liaison, en PNG 1200 × 630 |
 | `GET /api/multileg?stops=A\|B\|C&date=&dateTo=&minStay=` | Voyage en plusieurs étapes, boucle, excursion |
 | `GET /api/health` | État du service et de sa base |
 
@@ -277,6 +282,8 @@ dépendance réseau à l'exécution. À relancer ponctuellement, ces données é
 ```bash
 uv run scripts/build-popularity.py     # score de notoriété touristique par gare
 uv run scripts/build-booking.py        # slugs de ville pour les liens de réservation
+uv run scripts/build-station-pages.py  # gares qui méritent une page /depuis/<gare>
+uv run scripts/build-route-pages.py    # liaisons qui méritent une page /depuis/<a>/vers/<b>
 uv run scripts/build-rail-network.py   # tracé du réseau ferré, fond de la carte
 ```
 
@@ -288,7 +295,7 @@ de chaque script.
 L'image d'accueil est l'élément LCP de la page : ses variantes sont générées à la main et
 commitées, plutôt que produites par un module Nuxt. L'image ne change jamais, et `.output/`
 doit rester sans binaire natif pour qu'un build lancé depuis un Mac arm64 tourne dans le
-conteneur amd64 (voir `infra/deploy.sh`). Deux variantes AVIF (69 % de moins que le JPEG à
+conteneur amd64. Deux variantes AVIF (69 % de moins que le JPEG à
 qualité indiscernable), `hero.jpg` en repli pour les navigateurs sans AVIF.
 
 Pour les régénérer, avec [vips](https://www.libvips.org/) (`brew install vips`) :

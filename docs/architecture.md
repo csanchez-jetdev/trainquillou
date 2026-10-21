@@ -53,6 +53,8 @@ Proxy (Caddy) ─── /api/* ──► API Django          reste ──► ser
 | `GET /api/search?origin=&date=&mode=&dateTo=` | Destinations réservables, enrichies des coordonnées | — |
 | `GET /api/returns?origin=&dest=&from=` | Dates de retour disponibles pour un trajet | — |
 | `GET /api/route?from=&to=&date=&stops=` | Itinéraires A → B avec correspondances | — |
+| `GET /api/liaison?origin=&dest=&from=` | Tout ce qu'une page de liaison affiche, en une requête par sens | — |
+| `GET /api/og.png?origin=&dest=&from=` | Image de partage d'une liaison, dessinée avec les polices du site | 1 h |
 | `GET /api/multileg?stops=A\|B\|C&date=&dateTo=&minStay=` | Voyage en plusieurs étapes, boucle, excursion | — |
 | `GET /api/stats?origin=` | Agrégats de l'offre réservable, pour la page publique | 10 min |
 | `GET /api/updated` | Date du dernier relevé et part éligible, pour l'accueil | 10 min |
@@ -117,14 +119,41 @@ fiche ancrée sur la carte, ouverte au clic. Une recherche à quatre semaines re
 70 destinations et une exploration sur une semaine 130 : tout déplier faisait plusieurs mètres
 de défilement, dont deux liens de réservation par ligne.
 
-## Pages d'entrée par gare
+## Pages d'entrée par gare et par liaison
 
 `/depuis/[slug]` est une page statique par gare de départ, pré-rendue au build. Elles ne
 contiennent **aucune donnée temps réel** : uniquement du contenu, du maillage interne et des
 liens vers l'application. La liste des gares qui en méritent une vient de
 `shared/station-pages.json`, calculé par `scripts/build-station-pages.py`.
 
+`/depuis/[slug]/vers/[to]` va plus loin : elle porte les jours où la liaison est réservable,
+les horaires du prochain d'entre eux et les dates de retour. C'est la seule famille de pages
+dont la donnée est rendue au serveur — les dates *sont* le contenu, et un robot qui n'exécute
+pas de JavaScript doit les trouver dans le HTML. Le rendu est gardé six heures
+(`routeRules`, `swr`), l'ingestion ne bougeant qu'une fois par jour.
+
+Nitro n'est pas dans le chemin `/api/*` que le proxy route vers Django : l'appel serveur passe
+donc par `runtimeConfig.backendUrl`, tandis que le navigateur garde l'URL relative. C'est la
+seule raison pour laquelle `NUXT_BACKEND_URL` existe désormais aussi en production. Le
+préfixe `NUXT_` n'est pas décoratif : c'est par lui que Nuxt remplace `runtimeConfig` à
+l'exécution, et sans lui la valeur lue au build reste figée dans l'image.
+
+La liste des liaisons vient de `shared/route-pages.json`, calculé par
+`scripts/build-route-pages.py`. Elle est volontairement courte : croiser les cinquante pages
+gare donnerait 2 450 URL sur un seul gabarit, ce que `build-station-pages.py` refuse déjà à
+l'échelle inférieure. On part des gares dont la mesure d'audience établit la demande, et on
+retient les couples ayant assez de jours réservables pour que la page ait quelque chose à dire.
+
+`/liaisons` les groupe par gare de départ. Elle existe parce que `nitro.prerender.crawlLinks`
+est à `false` : une page qu'aucune autre ne lie n'est atteignable que par le sitemap.
+
 Les slugs viennent de `shared/booking.json`, la même table que les liens de réservation.
+
+## Sitemap
+
+`<lastmod>` porte le jour de la dernière ingestion sur les pages dont le contenu en dépend,
+et rien sur « À propos », qui n'en dépend pas. Google ignore `<changefreq>` et `<priority>` ;
+`<lastmod>` est le seul champ lu, et seulement tant qu'il reste exact.
 
 ## Fond de carte
 

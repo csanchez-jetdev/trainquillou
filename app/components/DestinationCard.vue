@@ -47,7 +47,7 @@ function formatDate(iso: string): string {
     >
       <span v-if="selected" class="absolute inset-y-0 left-0 w-[3px] bg-accent" />
 
-      <div class="flex items-baseline gap-2">
+      <span class="flex items-baseline gap-2">
         <span class="min-w-0 flex-1 truncate font-semibold text-rail">{{ name }}</span>
         <!-- Swatch, not coloured text: two of the ramp's bands fall under 4.5:1 on white. -->
         <span
@@ -67,16 +67,16 @@ function formatDate(iso: string): string {
         >
           {{ days.length }} j
         </span>
-      </div>
+      </span>
 
-      <p class="mt-0.5 truncate text-xs text-rail-soft">
+      <span class="mt-0.5 block truncate text-xs text-rail-soft">
         <template v-if="mode === 'range'">
           {{ days.slice(0, 4).map(formatDate).join(' · ') }}<template v-if="days.length > 4"> +{{ days.length - 4 }}</template>
         </template>
         <template v-else-if="mode === 'roundtrip'">
           {{ trains.length }} aller<template v-if="trains.length > 1">s</template>
           <span class="text-slate-300"> · </span>
-          <span class="text-coral-strong">{{ destination.returnTrains?.length ?? 0 }} retour<template v-if="(destination.returnTrains?.length ?? 0) > 1">s</template></span>
+          <span class="text-coral-ink">{{ destination.returnTrains?.length ?? 0 }} retour<template v-if="(destination.returnTrains?.length ?? 0) > 1">s</template></span>
         </template>
         <template v-else>
           {{ trains.length }} train<template v-if="trains.length > 1">s</template>
@@ -85,7 +85,7 @@ function formatDate(iso: string): string {
             <span class="tabular-nums">{{ window.first }}<template v-if="window.last !== window.first"> → {{ window.last }}</template></span>
           </template>
         </template>
-      </p>
+      </span>
     </button>
   </li>
 </template>

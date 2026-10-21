@@ -18,7 +18,6 @@ CITY_TRANSFER = {"PARIS (intramuros)": 45, "LYON (intramuros)": 30, "LILLE (intr
 MAX_STOPS = 3
 FRONTIER_CAP = 12
 MAX_ITINERARIES = 40
-SUGGESTED_DAYS = 3
 
 
 @dataclass(frozen=True)
@@ -58,6 +57,12 @@ def _leg(offer: Offer) -> Leg:
         dep_min=dep,
         arr_min=arr,
     )
+
+
+def duration_min(departure: time, arrival: time) -> int:
+    """Minutes of a trip, the arrival crossing midnight when its clock reads earlier."""
+    dep, arr = _minutes(departure), _minutes(arrival)
+    return (arr + MINUTES_PER_DAY if arr < dep else arr) - dep
 
 
 def transfer_margin(station: str) -> int:
@@ -189,21 +194,37 @@ def find_itineraries(origin: str, destination: str, date: Date, max_stops: int) 
         if previous is None or duration < previous["durationMin"]:
             best_by_departure[path[0].departure] = itinerary
 
-    return sorted(best_by_departure.values(), key=lambda i: i["departure"])[:MAX_ITINERARIES]
+    # Connections before departure time: each leg is booked on its own and nothing protects a
+    # connection, so a midday direct beats a dawn departure that hops three times.
+    return sorted(best_by_departure.values(), key=lambda i: (i["stops"], i["departure"]))[
+        :MAX_ITINERARIES
+    ]
 
 
-def feasible_next_days(
-    origin: str, destination: str, base_date: Date, limit: int = SUGGESTED_DAYS
-) -> list[str]:
-    """The earliest `limit` days after `base_date` offering an A → B trip in one connection."""
+def feasible_days(origin: str, destination: str, since: Date, max_stops: int = 1) -> list[str]:
+    """
+    Every day from `since` on offering an A → B trip, direct or in one connection.
+
+    The whole window, not the days that follow the one asked for: aiming at the end of the
+    month while the trains run next week used to answer nothing at all. Beyond one connection
+    the list is a floor rather than the full count — exploring further costs a day of graph
+    per date, and the client offers these as leads, not as a promise.
+    """
+    days: set[Date] = set()
+    outbound = Offer.objects.filter(bookable=True, origin=origin, date__gte=since)
+
+    if max_stops < 1:
+        for day, node in outbound.values_list("date", "destination"):
+            if same_station(node, destination):
+                days.add(day)
+        return sorted(day.isoformat() for day in days)
+
     # Departures of the second leg, per day and connecting station.
     onward: dict[tuple[Date, str], list[int]] = {}
-    inbound = Offer.objects.filter(bookable=True, destination=destination, date__gt=base_date)
+    inbound = Offer.objects.filter(bookable=True, destination=destination, date__gte=since)
     for day, node, departure in inbound.values_list("date", "origin", "departure"):
         onward.setdefault((day, clean_string(node)), []).append(_minutes(departure))
 
-    days: set[Date] = set()
-    outbound = Offer.objects.filter(bookable=True, origin=origin, date__gt=base_date)
     for day, node, dep, arr in outbound.values_list("date", "destination", "departure", "arrival"):
         if day in days:
             continue
@@ -218,4 +239,4 @@ def feasible_next_days(
         if any(d >= margin for d in onward.get((day, clean_string(node)), ())):
             days.add(day)
 
-    return sorted(day.isoformat() for day in days)[:limit]
+    return sorted(day.isoformat() for day in days)
