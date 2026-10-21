@@ -72,8 +72,8 @@ export default defineNuxtConfig({
       // the daily ingestion moves. Prerendering would freeze them on the build day.
       '/liaisons': { swr: 21600 },
       '/simulateur-tgvmax': { swr: 21600 },
-      '/depuis/*': { swr: 21600 },
-      '/depuis/*/vers/**': { swr: 21600 },
+      // `**`, not `*`: `/depuis/<slug>/_payload.json` must match the page's own rule.
+      '/depuis/**': { swr: 21600 },
     },
   },
 
@@ -98,8 +98,7 @@ export default defineNuxtConfig({
       routeRules: {
         '/liaisons': { swr: false },
         '/simulateur-tgvmax': { swr: false },
-        '/depuis/*': { swr: false },
-        '/depuis/*/vers/**': { swr: false },
+        '/depuis/**': { swr: false },
       },
     },
   },
